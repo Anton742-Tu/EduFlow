@@ -152,3 +152,10 @@ REST_FRAMEWORK = {
         'rest_framework.parsers.MultiPartParser',
     ],
 }
+
+# Настройка кастомной модели пользователя
+AUTH_USER_MODEL = 'users.User'
+
+# Настройки для медиа-файлов (аватарки)
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
