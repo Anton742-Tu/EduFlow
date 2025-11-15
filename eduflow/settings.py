@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     # Наши приложения
     'courses.apps.CoursesConfig',
     'users.apps.UsersConfig',
+    'materials.apps.MaterialsConfig',
 ]
 
 MIDDLEWARE = [
