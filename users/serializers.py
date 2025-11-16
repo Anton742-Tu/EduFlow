@@ -1,5 +1,6 @@
-from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
+from rest_framework import serializers
+
 from .models import User
 
 
@@ -8,11 +9,8 @@ class UserProfileSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = [
-            'id', 'email', 'first_name', 'last_name',
-            'phone', 'city', 'avatar', 'date_joined', 'last_login'
-        ]
-        read_only_fields = ['id', 'email', 'date_joined', 'last_login']
+        fields = ["id", "email", "first_name", "last_name", "phone", "city", "avatar", "date_joined", "last_login"]
+        read_only_fields = ["id", "email", "date_joined", "last_login"]
 
 
 class UserUpdateSerializer(serializers.ModelSerializer):
@@ -20,29 +18,25 @@ class UserUpdateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = [
-            'first_name', 'last_name', 'phone', 'city', 'avatar'
-        ]
+        fields = ["first_name", "last_name", "phone", "city", "avatar"]
 
 
 class UserCreateSerializer(serializers.ModelSerializer):
     """Сериализатор для создания пользователя"""
+
     password = serializers.CharField(write_only=True, validators=[validate_password])
     password_confirm = serializers.CharField(write_only=True)
 
     class Meta:
         model = User
-        fields = [
-            'email', 'first_name', 'last_name', 'phone',
-            'city', 'avatar', 'password', 'password_confirm'
-        ]
+        fields = ["email", "first_name", "last_name", "phone", "city", "avatar", "password", "password_confirm"]
 
     def validate(self, attrs):
-        if attrs['password'] != attrs['password_confirm']:
+        if attrs["password"] != attrs["password_confirm"]:
             raise serializers.ValidationError({"password": "Пароли не совпадают"})
         return attrs
 
     def create(self, validated_data):
-        validated_data.pop('password_confirm')
+        validated_data.pop("password_confirm")
         user = User.objects.create_user(**validated_data)
         return user
