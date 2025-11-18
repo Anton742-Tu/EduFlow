@@ -25,12 +25,9 @@ def test_api(request):
 class CourseViewSet(viewsets.ModelViewSet):
     """
     ViewSet для CRUD операций с курсами.
-    Предоставляет все стандартные действия: list, create, retrieve, update, partial_update, destroy
     """
-
-    queryset = Course.objects.all()
+    queryset = Course.objects.all().prefetch_related('lessons')
     serializer_class = CourseSerializer
-
 
 class LessonListCreateAPIView(generics.ListCreateAPIView):
     """
