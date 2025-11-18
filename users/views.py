@@ -5,6 +5,11 @@ from rest_framework.response import Response
 
 from .models import User
 from .serializers import UserCreateSerializer, UserProfileSerializer, UserUpdateSerializer
+from rest_framework import viewsets, filters
+from django_filters.rest_framework import DjangoFilterBackend
+from .models import Payments
+from .serializers import PaymentsSerializer
+from .filters import PaymentsFilter
 
 
 class UserViewSet(viewsets.ModelViewSet):
@@ -42,3 +47,15 @@ class UserViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data)
+
+
+class PaymentsViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet для управления платежами с фильтрацией и сортировкой.
+    """
+    queryset = Payments.objects.all()
+    serializer_class = PaymentsSerializer
+    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
+    filterset_class = PaymentsFilter
+    ordering_fields = ['payment_date', 'amount']  # Поля для сортировки
+    ordering = ['-payment_date']  # Сортировка по умолчанию (новые сначала)
