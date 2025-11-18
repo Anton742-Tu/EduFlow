@@ -1,7 +1,8 @@
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
 
-from .models import User
+from .models import User, Payments
+
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
@@ -40,3 +41,15 @@ class UserCreateSerializer(serializers.ModelSerializer):
         validated_data.pop("password_confirm")
         user = User.objects.create_user(**validated_data)
         return user
+
+
+class PaymentsSerializer(serializers.ModelSerializer):
+    """Сериализатор для платежей"""
+
+    class Meta:
+        model = Payments
+        fields = [
+            'id', 'user', 'payment_date', 'paid_course',
+            'paid_lesson', 'amount', 'payment_method'
+        ]
+        read_only_fields = ['id', 'payment_date']
