@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from .models import Course, Lesson
+from typing import Any
 
 
 class LessonSerializer(serializers.ModelSerializer):
@@ -23,6 +24,7 @@ class CourseSerializer(serializers.ModelSerializer):
             'created_at', 'updated_at'
         ]
 
-    def get_lessons_count(self, obj):
+    def get_lessons_count(self, obj: Course) -> int:
         """Метод для получения количества уроков в курсе"""
-        return obj.lessons.count()
+        count = obj.lessons.count()
+        return int(count)  # ← Явное преобразование в int

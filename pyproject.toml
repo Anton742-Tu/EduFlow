@@ -90,3 +90,7 @@ disallow_untyped_defs = false
 [[tool.mypy.overrides]]
 module = "materials.models"
 disallow_untyped_defs = false
+
+[[tool.mypy.overrides]]
+module = "materials.admin"
+disallow_untyped_defs = false
