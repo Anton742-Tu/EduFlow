@@ -1,8 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 
-from .models import User
-from .models import User, Payments
+from .models import Payments, User
 
 
 @admin.register(User)
@@ -27,7 +26,7 @@ class CustomUserAdmin(UserAdmin):
 
 @admin.register(Payments)
 class PaymentsAdmin(admin.ModelAdmin):
-    list_display = ('user', 'payment_date', 'paid_course', 'paid_lesson', 'amount', 'payment_method')
-    list_filter = ('payment_date', 'payment_method')
-    search_fields = ('user__email', 'paid_course__title', 'paid_lesson__title')
-    date_hierarchy = 'payment_date'
+    list_display = ("user", "payment_date", "paid_course", "paid_lesson", "amount", "payment_method")
+    list_filter = ("payment_date", "payment_method")
+    search_fields = ("user__email", "paid_course__title", "paid_lesson__title")
+    date_hierarchy = "payment_date"
