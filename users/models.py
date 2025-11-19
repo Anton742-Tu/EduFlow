@@ -1,7 +1,11 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.utils.translation import gettext_lazy as _
-from typing import List
+from typing import List, TYPE_CHECKING
+
+# Conditional import для избежания циклических импортов
+if TYPE_CHECKING:
+    from materials.models import Course, Lesson
 
 from .managers import CustomUserManager
 
@@ -34,51 +38,71 @@ class User(AbstractUser):
         verbose_name_plural = _('users')
 
     def __str__(self) -> str:
-        return self.email
+        return str(self.email)  # ← Явное преобразование в str
 
     @property
     def full_name(self) -> str:
         """Возвращает полное имя пользователя."""
-        return f"{self.first_name} {self.last_name}".strip()
+        name = f"{self.first_name} {self.last_name}".strip()
+        return name if name else str(self.email)
 
 
 class Payments(models.Model):
     """Модель платежей"""
 
     class PaymentMethod(models.TextChoices):
-        CASH = "cash", _("Наличные")
-        TRANSFER = "transfer", _("Перевод на счет")
+        CASH = 'cash', _('Наличные')
+        TRANSFER = 'transfer', _('Перевод на счет')
 
     user = models.ForeignKey(
-        User,  # Ссылка на модель User из этого же файла
+        User,
         on_delete=models.CASCADE,
-        related_name="payments",
-        verbose_name=_("пользователь"),
+        related_name='payments',
+        verbose_name=_('пользователь')
     )
-    payment_date = models.DateTimeField(_("дата оплаты"), auto_now_add=True)
+    payment_date = models.DateTimeField(
+        _('дата оплаты'),
+        auto_now_add=True
+    )
     paid_course = models.ForeignKey(
-        Course,
+        'materials.Course',  # ← Используем строковую ссылку
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name="payments",
-        verbose_name=_("оплаченный курс"),
+        related_name='payments',
+        verbose_name=_('оплаченный курс')
     )
     paid_lesson = models.ForeignKey(
-        Lesson,
+        'materials.Lesson',  # ← Используем строковую ссылку
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name="payments",
-        verbose_name=_("оплаченный урок"),
+        related_name='payments',
+        verbose_name=_('оплаченный урок')
     )
-    amount = models.DecimalField(_("сумма оплаты"), max_digits=10, decimal_places=2)
-    payment_method = models.CharField(_("способ оплаты"), max_length=10, choices=PaymentMethod.choices)
+    amount = models.DecimalField(
+        _('сумма оплаты'),
+        max_digits=10,
+        decimal_places=2
+    )
+    payment_method = models.CharField(
+        _('способ оплаты'),
+        max_length=10,
+        choices=PaymentMethod.choices
+    )
 
     class Meta:
-        verbose_name = _("платеж")
-        verbose_name_plural = _("платежи")
-        ordering = ["-payment_date"]
+        verbose_name = _('платеж')
+        verbose_name_plural = _('платежи')
+        ordering = ['-payment_date']
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.user.email} - {self.amount} - {self.payment_date}"
+
+    def clean(self) -> None:  # ← Добавляем аннотацию типа
+        """Проверяем что оплачен либо курс, либо урок"""
+        from django.core.exceptions import ValidationError
+        if self.paid_course and self.paid_lesson:
+            raise ValidationError(_('Можно оплатить либо курс, либо урок, но не оба одновременно.'))
+        if not self.paid_course and not self.paid_lesson:
+            raise ValidationError(_('Должен быть оплачен либо курс, либо урок.'))
