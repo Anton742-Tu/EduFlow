@@ -78,3 +78,19 @@ ignore_missing_imports = true
 [[tool.mypy.overrides]]
 module = "rest_framework.*"
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "users.models"
+disallow_untyped_defs = false
+
+[[tool.mypy.overrides]]
+module = "users.managers"
+disallow_untyped_defs = false
+
+[[tool.mypy.overrides]]
+module = "materials.models"
+disallow_untyped_defs = false
+
+[[tool.mypy.overrides]]
+module = "materials.admin"
+disallow_untyped_defs = false

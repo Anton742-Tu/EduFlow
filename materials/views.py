@@ -1,13 +1,17 @@
+from typing import Any
+
 from django.http import HttpResponse
+from django.utils.translation import gettext_lazy as _
 from rest_framework import generics, viewsets
 from rest_framework.decorators import api_view
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
 from .models import Course, Lesson
 from .serializers import CourseSerializer, LessonSerializer
 
 
-def home(request):
+def home(request: Any) -> HttpResponse:
     return HttpResponse(
         "<h1>EduFlow - Образовательная платформа</h1>"
         "<p>Добро пожаловать в EduFlow! Платформа для создания и прохождения курсов.</p>"
@@ -17,7 +21,7 @@ def home(request):
 
 
 @api_view(["GET"])
-def test_api(request):
+def test_api(request: Any) -> Response:
     """Простой тестовый API endpoint"""
     return Response({"message": "EduFlow API работает!", "status": "success", "version": "1.0"})
 
@@ -28,7 +32,7 @@ class CourseViewSet(viewsets.ModelViewSet):
     Предоставляет все стандартные действия: list, create, retrieve, update, partial_update, destroy
     """
 
-    queryset = Course.objects.all()
+    queryset = Course.objects.all().prefetch_related("lessons")
     serializer_class = CourseSerializer
 
 

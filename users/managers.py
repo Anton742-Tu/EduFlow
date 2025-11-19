@@ -1,3 +1,5 @@
+from typing import Any
+
 from django.contrib.auth.base_user import BaseUserManager
 from django.utils.translation import gettext_lazy as _
 
@@ -8,7 +10,7 @@ class CustomUserManager(BaseUserManager):
     для аутентификации вместо username.
     """
 
-    def create_user(self, email, password=None, **extra_fields):
+    def create_user(self, email: str, password: str | None = None, **extra_fields: Any):
         """
         Создает и сохраняет пользователя с указанным email и паролем.
         """
@@ -17,10 +19,10 @@ class CustomUserManager(BaseUserManager):
         email = self.normalize_email(email)
         user = self.model(email=email, **extra_fields)
         user.set_password(password)
-        user.save()
+        user.save(using=self._db)
         return user
 
-    def create_superuser(self, email, password=None, **extra_fields):
+    def create_superuser(self, email: str, password: str | None = None, **extra_fields: Any):
         """
         Создает и сохраняет суперпользователя с указанным email и паролем.
         """

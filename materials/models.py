@@ -1,3 +1,5 @@
+from typing import Any
+
 from django.conf import settings
 from django.db import models
 from django.utils.translation import gettext_lazy as _
@@ -26,8 +28,8 @@ class Course(models.Model):
         verbose_name_plural = _("courses")
         ordering = ["-created_at"]
 
-    def __str__(self):
-        return self.title
+    def __str__(self) -> str:
+        return str(self.title)  # ← Явное преобразование в str
 
 
 class Lesson(models.Model):
@@ -61,13 +63,12 @@ class Lesson(models.Model):
         verbose_name = _("lesson")
         verbose_name_plural = _("lessons")
         ordering = ["course", "order", "created_at"]
-        # Временно убираем unique_together, может вызвать проблемы при миграциях
-        # unique_together = ['course', 'order']
 
-    def __str__(self):
-        return f"{self.course.title} - {self.title}"
+    def __str__(self) -> str:
+        course_title = str(self.course.title) if self.course else "No Course"
+        return f"{course_title} - {self.title}"  # ← Явное преобразование
 
-    def save(self, *args, **kwargs):
+    def save(self, *args: Any, **kwargs: Any) -> None:
         """Автоматически устанавливаем порядок, если не указан"""
         if self.order == 0:
             # Находим максимальный порядок в курсе и добавляем 1
