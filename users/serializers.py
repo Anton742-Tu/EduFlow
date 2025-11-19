@@ -1,9 +1,9 @@
 from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
 from .models import User, Payments
+from typing import Any, Dict
 
 
-# СНАЧАЛА определяем PaymentsSerializer
 class PaymentsSerializer(serializers.ModelSerializer):
     """Сериализатор для платежей"""
 
@@ -16,10 +16,9 @@ class PaymentsSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'payment_date']
 
 
-# ПОТОМ определяем User сериализаторы, которые используют PaymentsSerializer
 class UserProfileSerializer(serializers.ModelSerializer):
     """Сериализатор для профиля пользователя с историей платежей"""
-    payments = PaymentsSerializer(many=True, read_only=True)  # Теперь PaymentsSerializer определен!
+    payments = PaymentsSerializer(many=True, read_only=True)
 
     class Meta:
         model = User
@@ -53,12 +52,12 @@ class UserCreateSerializer(serializers.ModelSerializer):
             'city', 'avatar', 'password', 'password_confirm'
         ]
 
-    def validate(self, attrs):
+    def validate(self, attrs: Dict[str, Any]) -> Dict[str, Any]:
         if attrs['password'] != attrs['password_confirm']:
             raise serializers.ValidationError({"password": "Пароли не совпадают"})
         return attrs
 
-    def create(self, validated_data):
+    def create(self, validated_data: Dict[str, Any]) -> User:
         validated_data.pop('password_confirm')
         user = User.objects.create_user(**validated_data)
-        return user
+        return user  # type: ignore
