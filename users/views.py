@@ -8,6 +8,7 @@ from .models import User, Payments
 from .serializers import UserProfileSerializer, UserUpdateSerializer, UserCreateSerializer, PaymentsSerializer
 from .filters import PaymentsFilter
 from typing import Any, Type, List
+from users.permissions import IsModerator
 
 
 class UserViewSet(viewsets.ModelViewSet):
@@ -20,13 +21,13 @@ class UserViewSet(viewsets.ModelViewSet):
         """
         Настраиваем права доступа:
         - Регистрация доступна всем
-        - Просмотр списка только админам
+        - Просмотр списка только админам и модераторам
         - Просмотр/редактирование своего профиля - авторизованным пользователям
         """
         if self.action == 'create':
             return [AllowAny()]
         elif self.action == 'list':
-            return [IsAdminUser()]
+            return [IsAuthenticated(), IsModerator | IsAdminUser]  # ← Модераторы и админы
         elif self.action in ['retrieve', 'update', 'partial_update', 'destroy', 'me', 'update_me']:
             return [IsAuthenticated()]
         return [IsAuthenticated()]
