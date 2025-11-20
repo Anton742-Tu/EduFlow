@@ -16,15 +16,17 @@ class IsModerator(permissions.BasePermission):
         # Проверяем, является ли пользователь модератором
         return request.user.groups.filter(name='moderators').exists()
 
+
+class IsOwner(permissions.BasePermission):
+    """
+    Права доступа для владельцев объектов.
+    Владельцы могут делать все со своими объектами.
+    """
+
     def has_object_permission(self, request, view, obj):
-        # Модераторы могут просматривать и изменять любой объект
-        if request.method in permissions.SAFE_METHODS + ['PUT', 'PATCH']:
-            return request.user.groups.filter(name='moderators').exists()
-
-        # Модераторы не могут удалять объекты
-        if request.method == 'DELETE':
-            return False
-
+        # Проверяем, является ли пользователь владельцем объекта
+        if hasattr(obj, 'owner'):
+            return obj.owner == request.user
         return False
 
 
@@ -58,4 +60,23 @@ class CanCreateContent(permissions.BasePermission):
             # Модераторы не могут создавать новый контент
             if request.user.groups.filter(name='moderators').exists():
                 return False
+        return True
+
+
+class CanDeleteContent(permissions.BasePermission):
+    """
+    Права доступа для удаления контента.
+    Разрешает удаление только владельцам и админам.
+    """
+
+    def has_object_permission(self, request, view, obj):
+        if request.method == 'DELETE':
+            # Владелец может удалять свой контент
+            if hasattr(obj, 'owner') and obj.owner == request.user:
+                return True
+            # Админы могут удалять любой контент
+            if request.user.is_staff:
+                return True
+            # Модераторы не могут удалять
+            return False
         return True
