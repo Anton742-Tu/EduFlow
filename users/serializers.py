@@ -2,6 +2,9 @@ from typing import Any, Dict
 
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from django.contrib.auth import authenticate
+from django.utils.translation import gettext_lazy as _
 
 from .models import Payments, User
 
@@ -64,3 +67,38 @@ class UserCreateSerializer(serializers.ModelSerializer):
         validated_data.pop("password_confirm")
         user = User.objects.create_user(**validated_data)
         return user  # type: ignore
+
+
+class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+    """Кастомный сериализатор для JWT с авторизацией по email"""
+
+    def validate(self, attrs):
+        # Используем email вместо username
+        authenticate_kwargs = {
+            'email': attrs.get('email'),
+            'password': attrs.get('password'),
+        }
+
+        try:
+            authenticate_kwargs['request'] = self.context['request']
+        except KeyError:
+            pass
+
+        self.user = authenticate(**authenticate_kwargs)
+
+        if self.user is None or not self.user.is_active:
+            raise serializers.ValidationError(
+                _('No active account found with the given credentials')
+            )
+
+        data = {}
+        refresh = self.get_token(self.user)
+
+        data['refresh'] = str(refresh)
+        data['access'] = str(refresh.access_token)
+
+        return data
+
+
+class CustomTokenObtainPairView(TokenObtainPairView):
+    serializer_class = CustomTokenObtainPairSerializer

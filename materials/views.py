@@ -6,6 +6,7 @@ from rest_framework import generics, viewsets
 from rest_framework.decorators import api_view
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
 
 from .models import Course, Lesson
 from .serializers import CourseSerializer, LessonSerializer
@@ -29,44 +30,54 @@ def test_api(request: Any) -> Response:
 class CourseViewSet(viewsets.ModelViewSet):
     """
     ViewSet для CRUD операций с курсами.
-    Предоставляет все стандартные действия: list, create, retrieve, update, partial_update, destroy
     """
-
-    queryset = Course.objects.all().prefetch_related("lessons")
+    queryset = Course.objects.all().prefetch_related('lessons')
     serializer_class = CourseSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_permissions(self):
+        """
+        - Создание курсов только авторизованным пользователям
+        - Удаление/изменение только владельцам или админам
+        """
+        if self.action in ['create']:
+            return [IsAuthenticated()]
+        elif self.action in ['destroy', 'update', 'partial_update']:
+            return [IsAuthenticated()]  # Позже добавим проверку владения
+        return [IsAuthenticated()]
 
 
 class LessonListCreateAPIView(generics.ListCreateAPIView):
     """
     Generic-класс для получения списка уроков и создания нового урока
     """
-
     queryset = Lesson.objects.all()
     serializer_class = LessonSerializer
+    permission_classes = [IsAuthenticated]
 
 
 class LessonRetrieveAPIView(generics.RetrieveAPIView):
     """
     Generic-класс для получения одного урока
     """
-
     queryset = Lesson.objects.all()
     serializer_class = LessonSerializer
+    permission_classes = [IsAuthenticated]
 
 
 class LessonUpdateAPIView(generics.UpdateAPIView):
     """
     Generic-класс для обновления урока
     """
-
     queryset = Lesson.objects.all()
     serializer_class = LessonSerializer
+    permission_classes = [IsAuthenticated]
 
 
 class LessonDestroyAPIView(generics.DestroyAPIView):
     """
     Generic-класс для удаления урока
     """
-
     queryset = Lesson.objects.all()
     serializer_class = LessonSerializer
+    permission_classes = [IsAuthenticated]
