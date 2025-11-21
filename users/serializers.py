@@ -55,8 +55,26 @@ class PaymentsSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'payment_date']
 
 
-class UserProfileSerializer(serializers.ModelSerializer):
-    """Сериализатор для профиля пользователя с историей платежей"""
+class PublicUserProfileSerializer(serializers.ModelSerializer):
+    """
+    Сериализатор для публичного просмотра профиля пользователя.
+    Доступна только общая информация без чувствительных данных.
+    """
+
+    class Meta:
+        model = User
+        fields = [
+            'id', 'email', 'first_name', 'city', 'avatar',
+            'date_joined'
+        ]
+        read_only_fields = ['id', 'email', 'date_joined']
+
+
+class PrivateUserProfileSerializer(serializers.ModelSerializer):
+    """
+    Сериализатор для приватного просмотра собственного профиля.
+    Включает все данные пользователя, включая историю платежей.
+    """
     payments = PaymentsSerializer(many=True, read_only=True)
 
     class Meta:
@@ -64,9 +82,12 @@ class UserProfileSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'email', 'first_name', 'last_name',
             'phone', 'city', 'avatar', 'date_joined', 'last_login',
-            'payments'
+            'payments', 'is_active', 'is_staff'
         ]
-        read_only_fields = ['id', 'email', 'date_joined', 'last_login']
+        read_only_fields = [
+            'id', 'email', 'date_joined', 'last_login',
+            'is_active', 'is_staff', 'payments'
+        ]
 
 
 class UserUpdateSerializer(serializers.ModelSerializer):
