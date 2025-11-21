@@ -12,31 +12,16 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     """Кастомный сериализатор для JWT с авторизацией по email"""
 
     def validate(self, attrs):
-        # Используем email вместо username
-        authenticate_kwargs = {
-            'email': attrs.get('email'),
-            'password': attrs.get('password'),
-        }
+        print(f"🔧 JWT Auth attempt: {attrs.get('email')}")
 
+        # Упрощенная версия - используем стандартную логику
         try:
-            authenticate_kwargs['request'] = self.context['request']
-        except KeyError:
-            pass
-
-        self.user = authenticate(**authenticate_kwargs)
-
-        if self.user is None or not self.user.is_active:
-            raise serializers.ValidationError(
-                _('No active account found with the given credentials')
-            )
-
-        data = {}
-        refresh = self.get_token(self.user)
-
-        data['refresh'] = str(refresh)
-        data['access'] = str(refresh.access_token)
-
-        return data
+            data = super().validate(attrs)
+            print(f"✅ JWT Auth successful for: {self.user.email}")
+            return data
+        except Exception as e:
+            print(f"❌ JWT Auth failed: {e}")
+            raise
 
 
 class CustomTokenObtainPairView(TokenObtainPairView):

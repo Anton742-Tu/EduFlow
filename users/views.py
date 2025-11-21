@@ -21,9 +21,6 @@ from typing import Any, Type, List
 class UserViewSet(viewsets.ModelViewSet):
     """
     ViewSet для управления профилями пользователей.
-    - Любой авторизованный пользователь может просматривать любой профиль
-    - Редактировать можно только свой профиль (кроме модераторов и админов)
-    - При просмотре чужого профиля показывается ограниченная информация
     """
     queryset = User.objects.all().prefetch_related('payments')
 
@@ -38,7 +35,7 @@ class UserViewSet(viewsets.ModelViewSet):
         if self.action == 'create':
             return [AllowAny()]
         elif self.action == 'list':
-            return [IsAuthenticated(), IsAdminUser]  # Только админы видят список
+            return [IsAuthenticated(), IsAdminUser()]
         elif self.action in ['retrieve']:
             return [IsAuthenticated(), CanViewUserProfile()]
         elif self.action in ['update', 'partial_update', 'destroy']:
