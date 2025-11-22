@@ -1,4 +1,6 @@
 from django.contrib import admin
+from django.db.models import QuerySet
+from django.http import HttpRequest
 
 from .models import Course, Lesson
 
@@ -11,10 +13,12 @@ class CourseAdmin(admin.ModelAdmin):
     readonly_fields = ("created_at", "updated_at")
 
     def lessons_count(self, obj: Course) -> int:
-        count = obj.lessons.count()
-        return int(count)  # ← Явное преобразование в int
+        """Возвращает количество уроков в курсе"""
+        count: int = obj.lessons.count()
+        return count
 
-    lessons_count.short_description = _("Lessons count")  # type: ignore
+    # Выносим установку атрибута за пределы функции
+    lessons_count.short_description = "Количество уроков"  # type: ignore[attr-defined]
 
 
 @admin.register(Lesson)
@@ -24,3 +28,8 @@ class LessonAdmin(admin.ModelAdmin):
     search_fields = ("title", "description")
     readonly_fields = ("created_at", "updated_at")
     ordering = ("course", "order")
+
+    def get_queryset(self, request: HttpRequest) -> QuerySet[Lesson]:
+        """Оптимизация запроса с использованием select_related"""
+        queryset: QuerySet[Lesson] = super().get_queryset(request)
+        return queryset.select_related("course", "owner")
