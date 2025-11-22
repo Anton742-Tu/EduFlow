@@ -1,7 +1,11 @@
+from typing import List
+
+from django.contrib.auth.models import AbstractUser
 from django.db import models
-from django.conf import settings
 from django.utils.translation import gettext_lazy as _
-from typing import List, TYPE_CHECKING
+
+from .managers import CustomUserManager
+
 
 class User(AbstractUser):
     # Убираем поле username и делаем email как основное для аутентификации
@@ -27,7 +31,7 @@ class User(AbstractUser):
         verbose_name_plural = _("users")
 
     def __str__(self) -> str:
-        return str(self.email)  # ← Явное преобразование в str
+        return str(self.email)
 
     @property
     def full_name(self) -> str:
@@ -46,7 +50,7 @@ class Payments(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="payments", verbose_name=_("пользователь"))
     payment_date = models.DateTimeField(_("дата оплаты"), auto_now_add=True)
     paid_course = models.ForeignKey(
-        "materials.Course",  # ← Используем строковую ссылку
+        "materials.Course",
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
@@ -54,7 +58,7 @@ class Payments(models.Model):
         verbose_name=_("оплаченный курс"),
     )
     paid_lesson = models.ForeignKey(
-        "materials.Lesson",  # ← Используем строковую ссылку
+        "materials.Lesson",
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
@@ -72,7 +76,7 @@ class Payments(models.Model):
     def __str__(self) -> str:
         return f"{self.user.email} - {self.amount} - {self.payment_date}"
 
-    def clean(self) -> None:  # ← Добавляем аннотацию типа
+    def clean(self) -> None:
         """Проверяем что оплачен либо курс, либо урок"""
         from django.core.exceptions import ValidationError
 
