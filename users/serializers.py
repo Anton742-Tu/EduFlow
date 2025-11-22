@@ -2,8 +2,30 @@ from typing import Any, Dict
 
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from rest_framework_simplejwt.views import TokenObtainPairView
 
 from .models import Payments, User
+
+
+class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+    """Кастомный сериализатор для JWT с авторизацией по email"""
+
+    def validate(self, attrs: Dict[str, Any]) -> Dict[str, str]:
+        print(f"🔧 JWT Auth attempt: {attrs.get('email')}")
+
+        # Упрощенная версия - используем стандартную логику
+        try:
+            data = super().validate(attrs)
+            print(f"✅ JWT Auth successful for: {self.user.email}")
+            return data
+        except Exception as e:
+            print(f"❌ JWT Auth failed: {e}")
+            raise
+
+
+class CustomTokenObtainPairView(TokenObtainPairView):
+    serializer_class = CustomTokenObtainPairSerializer
 
 
 class PaymentsSerializer(serializers.ModelSerializer):
@@ -15,8 +37,23 @@ class PaymentsSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "payment_date"]
 
 
-class UserProfileSerializer(serializers.ModelSerializer):
-    """Сериализатор для профиля пользователя с историей платежей"""
+class PublicUserProfileSerializer(serializers.ModelSerializer):
+    """
+    Сериализатор для публичного просмотра профиля пользователя.
+    Доступна только общая информация без чувствительных данных.
+    """
+
+    class Meta:
+        model = User
+        fields = ["id", "email", "first_name", "city", "avatar", "date_joined"]
+        read_only_fields = ["id", "email", "date_joined"]
+
+
+class PrivateUserProfileSerializer(serializers.ModelSerializer):
+    """
+    Сериализатор для приватного просмотра собственного профиля.
+    Включает все данные пользователя, включая историю платежей.
+    """
 
     payments = PaymentsSerializer(many=True, read_only=True)
 
@@ -33,8 +70,10 @@ class UserProfileSerializer(serializers.ModelSerializer):
             "date_joined",
             "last_login",
             "payments",
+            "is_active",
+            "is_staff",
         ]
-        read_only_fields = ["id", "email", "date_joined", "last_login"]
+        read_only_fields = ["id", "email", "date_joined", "last_login", "is_active", "is_staff", "payments"]
 
 
 class UserUpdateSerializer(serializers.ModelSerializer):
@@ -62,5 +101,5 @@ class UserCreateSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data: Dict[str, Any]) -> User:
         validated_data.pop("password_confirm")
-        user = User.objects.create_user(**validated_data)
-        return user  # type: ignore
+        user: User = User.objects.create_user(**validated_data)
+        return user

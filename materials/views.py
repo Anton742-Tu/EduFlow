@@ -1,17 +1,18 @@
-from typing import Any
-
-from django.http import HttpResponse
-from django.utils.translation import gettext_lazy as _
+from django.db.models import QuerySet
+from django.http import HttpRequest, HttpResponse
 from rest_framework import generics, viewsets
 from rest_framework.decorators import api_view
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.request import Request
 from rest_framework.response import Response
+
+from users.permissions import CanCreateContent, CanDeleteContent, IsOwnerOrModerator
 
 from .models import Course, Lesson
 from .serializers import CourseSerializer, LessonSerializer
 
 
-def home(request: Any) -> HttpResponse:
+def home(request: HttpRequest) -> HttpResponse:
     return HttpResponse(
         "<h1>EduFlow - Образовательная платформа</h1>"
         "<p>Добро пожаловать в EduFlow! Платформа для создания и прохождения курсов.</p>"
@@ -21,7 +22,7 @@ def home(request: Any) -> HttpResponse:
 
 
 @api_view(["GET"])
-def test_api(request: Any) -> Response:
+def test_api(request: Request) -> Response:
     """Простой тестовый API endpoint"""
     return Response({"message": "EduFlow API работает!", "status": "success", "version": "1.0"})
 
@@ -29,44 +30,127 @@ def test_api(request: Any) -> Response:
 class CourseViewSet(viewsets.ModelViewSet):
     """
     ViewSet для CRUD операций с курсами.
-    Предоставляет все стандартные действия: list, create, retrieve, update, partial_update, destroy
+    Обычные пользователи видят и редактируют только свои курсы.
+    Модераторы видят и редактируют все курсы, но не могут создавать/удалять.
     """
 
-    queryset = Course.objects.all().prefetch_related("lessons")
     serializer_class = CourseSerializer
+
+    def get_permissions(self) -> list:
+        """
+        Права доступа для курсов:
+        - Создание: обычные пользователи (не модераторы)
+        - Просмотр списка: все авторизованные (видят только свои, кроме модераторов)
+        - Просмотр деталей: владелец или модератор
+        - Изменение: владелец или модератор
+        - Удаление: только владелец или админ
+        """
+        if self.action == "create":
+            return [IsAuthenticated(), CanCreateContent()]
+        elif self.action in ["update", "partial_update"]:
+            return [IsAuthenticated(), IsOwnerOrModerator()]
+        elif self.action == "destroy":
+            return [IsAuthenticated(), CanDeleteContent()]
+        elif self.action in ["list", "retrieve"]:
+            return [IsAuthenticated()]
+        return [IsAuthenticated()]
+
+    def get_queryset(self) -> QuerySet[Course]:
+        """
+        Обычные пользователи видят только свои курсы.
+        Модераторы и админы видят все курсы.
+        """
+        user = self.request.user
+
+        if user.is_staff or user.groups.filter(name="moderators").exists():
+            # Модераторы и админы видят все курсы
+            return Course.objects.all().prefetch_related("lessons")
+        else:
+            # Обычные пользователи видят только свои курсы
+            return Course.objects.filter(owner=user).prefetch_related("lessons")
+
+    def perform_create(self, serializer: CourseSerializer) -> None:
+        """
+        При создании курса автоматически устанавливаем владельца
+        """
+        serializer.save(owner=self.request.user)
 
 
 class LessonListCreateAPIView(generics.ListCreateAPIView):
     """
-    Generic-класс для получения списка уроков и создания нового урока
+    Generic-класс для получения списка уроков и создания нового урока.
+    Обычные пользователи видят только свои уроки.
     """
 
-    queryset = Lesson.objects.all()
     serializer_class = LessonSerializer
+
+    def get_permissions(self) -> list:
+        if self.request.method == "POST":
+            return [IsAuthenticated(), CanCreateContent()]
+        return [IsAuthenticated()]
+
+    def get_queryset(self) -> QuerySet[Lesson]:
+        """
+        Обычные пользователи видят только свои уроки.
+        Модераторы и админы видят все уроки.
+        """
+        user = self.request.user
+
+        if user.is_staff or user.groups.filter(name="moderators").exists():
+            return Lesson.objects.all()
+        else:
+            return Lesson.objects.filter(owner=user)
+
+    def perform_create(self, serializer: LessonSerializer) -> None:
+        serializer.save(owner=self.request.user)
 
 
 class LessonRetrieveAPIView(generics.RetrieveAPIView):
     """
-    Generic-класс для получения одного урока
+    Generic-класс для получения одного урока.
+    Доступно владельцам и модераторам.
     """
 
-    queryset = Lesson.objects.all()
     serializer_class = LessonSerializer
+    permission_classes = [IsAuthenticated, IsOwnerOrModerator]
+
+    def get_queryset(self) -> QuerySet[Lesson]:
+        user = self.request.user
+        if user.is_staff or user.groups.filter(name="moderators").exists():
+            return Lesson.objects.all()
+        else:
+            return Lesson.objects.filter(owner=user)
 
 
 class LessonUpdateAPIView(generics.UpdateAPIView):
     """
-    Generic-класс для обновления урока
+    Generic-класс для обновления урока.
+    Доступно владельцам и модераторам.
     """
 
-    queryset = Lesson.objects.all()
     serializer_class = LessonSerializer
+    permission_classes = [IsAuthenticated, IsOwnerOrModerator]
+
+    def get_queryset(self) -> QuerySet[Lesson]:
+        user = self.request.user
+        if user.is_staff or user.groups.filter(name="moderators").exists():
+            return Lesson.objects.all()
+        else:
+            return Lesson.objects.filter(owner=user)
 
 
 class LessonDestroyAPIView(generics.DestroyAPIView):
     """
-    Generic-класс для удаления урока
+    Generic-класс для удаления урока.
+    Доступно только владельцам и админам.
     """
 
-    queryset = Lesson.objects.all()
     serializer_class = LessonSerializer
+    permission_classes = [IsAuthenticated, CanDeleteContent]
+
+    def get_queryset(self) -> QuerySet[Lesson]:
+        user = self.request.user
+        if user.is_staff:
+            return Lesson.objects.all()
+        else:
+            return Lesson.objects.filter(owner=user)
