@@ -1,15 +1,20 @@
-from django.http import HttpResponse
-from rest_framework import viewsets, generics
+from typing import Any
+
+from django.db.models import QuerySet
+from django.http import HttpRequest, HttpResponse
+from rest_framework import generics, viewsets
 from rest_framework.decorators import api_view
-from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
+from rest_framework.response import Response
+
+from users.permissions import CanCreateContent, CanDeleteContent, IsOwnerOrModerator
+
 from .models import Course, Lesson
 from .serializers import CourseSerializer, LessonSerializer
-from users.permissions import IsOwnerOrModerator, CanCreateContent, CanDeleteContent
 
 
-def home(request: Any) -> HttpResponse:
+def home(request: HttpRequest) -> HttpResponse:
     return HttpResponse(
         "<h1>EduFlow - Образовательная платформа</h1>"
         "<p>Добро пожаловать в EduFlow! Платформа для создания и прохождения курсов.</p>"
@@ -19,7 +24,7 @@ def home(request: Any) -> HttpResponse:
 
 
 @api_view(["GET"])
-def test_api(request: Any) -> Response:
+def test_api(request: Request) -> Response:
     """Простой тестовый API endpoint"""
     return Response({"message": "EduFlow API работает!", "status": "success", "version": "1.0"})
 
@@ -33,7 +38,7 @@ class CourseViewSet(viewsets.ModelViewSet):
 
     serializer_class = CourseSerializer
 
-    def get_permissions(self):
+    def get_permissions(self) -> list:
         """
         Права доступа для курсов:
         - Создание: обычные пользователи (не модераторы)
@@ -52,7 +57,7 @@ class CourseViewSet(viewsets.ModelViewSet):
             return [IsAuthenticated()]
         return [IsAuthenticated()]
 
-    def get_queryset(self):
+    def get_queryset(self) -> QuerySet[Course]:
         """
         Обычные пользователи видят только свои курсы.
         Модераторы и админы видят все курсы.
@@ -66,7 +71,7 @@ class CourseViewSet(viewsets.ModelViewSet):
             # Обычные пользователи видят только свои курсы
             return Course.objects.filter(owner=user).prefetch_related("lessons")
 
-    def perform_create(self, serializer):
+    def perform_create(self, serializer: CourseSerializer) -> None:
         """
         При создании курса автоматически устанавливаем владельца
         """
@@ -81,12 +86,12 @@ class LessonListCreateAPIView(generics.ListCreateAPIView):
 
     serializer_class = LessonSerializer
 
-    def get_permissions(self):
+    def get_permissions(self) -> list:
         if self.request.method == "POST":
             return [IsAuthenticated(), CanCreateContent()]
         return [IsAuthenticated()]
 
-    def get_queryset(self):
+    def get_queryset(self) -> QuerySet[Lesson]:
         """
         Обычные пользователи видят только свои уроки.
         Модераторы и админы видят все уроки.
@@ -98,7 +103,7 @@ class LessonListCreateAPIView(generics.ListCreateAPIView):
         else:
             return Lesson.objects.filter(owner=user)
 
-    def perform_create(self, serializer):
+    def perform_create(self, serializer: LessonSerializer) -> None:
         serializer.save(owner=self.request.user)
 
 
@@ -111,7 +116,7 @@ class LessonRetrieveAPIView(generics.RetrieveAPIView):
     serializer_class = LessonSerializer
     permission_classes = [IsAuthenticated, IsOwnerOrModerator]
 
-    def get_queryset(self):
+    def get_queryset(self) -> QuerySet[Lesson]:
         user = self.request.user
         if user.is_staff or user.groups.filter(name="moderators").exists():
             return Lesson.objects.all()
@@ -128,7 +133,7 @@ class LessonUpdateAPIView(generics.UpdateAPIView):
     serializer_class = LessonSerializer
     permission_classes = [IsAuthenticated, IsOwnerOrModerator]
 
-    def get_queryset(self):
+    def get_queryset(self) -> QuerySet[Lesson]:
         user = self.request.user
         if user.is_staff or user.groups.filter(name="moderators").exists():
             return Lesson.objects.all()
@@ -145,7 +150,7 @@ class LessonDestroyAPIView(generics.DestroyAPIView):
     serializer_class = LessonSerializer
     permission_classes = [IsAuthenticated, CanDeleteContent]
 
-    def get_queryset(self):
+    def get_queryset(self) -> QuerySet[Lesson]:
         user = self.request.user
         if user.is_staff:
             return Lesson.objects.all()
