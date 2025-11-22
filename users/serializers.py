@@ -1,15 +1,17 @@
-from rest_framework import serializers
+from typing import Dict, Any
+
 from django.contrib.auth.password_validation import validate_password
+from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
-from .models import User, Payments
-from typing import Dict
+
+from .models import Payments, User
 
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     """Кастомный сериализатор для JWT с авторизацией по email"""
 
-    def validate(self, attrs):
+    def validate(self, attrs: Dict[str, Any]) -> Dict[str, str]:
         print(f"🔧 JWT Auth attempt: {attrs.get('email')}")
 
         # Упрощенная версия - используем стандартную логику
@@ -99,5 +101,5 @@ class UserCreateSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data: Dict[str, Any]) -> User:
         validated_data.pop("password_confirm")
-        user = User.objects.create_user(**validated_data)
+        user: User = User.objects.create_user(**validated_data)
         return user
