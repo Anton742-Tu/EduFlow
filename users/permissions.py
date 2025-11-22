@@ -1,6 +1,7 @@
+from typing import Any
+
 from rest_framework import permissions
 from rest_framework.request import Request
-from typing import Any
 
 
 class IsModerator(permissions.BasePermission):
@@ -15,7 +16,7 @@ class IsModerator(permissions.BasePermission):
             return False
 
         # Проверяем, является ли пользователь модератором
-        return bool(request.user.groups.filter(name='moderators').exists())  # ← ЯВНОЕ ПРЕОБРАЗОВАНИЕ
+        return bool(request.user.groups.filter(name="moderators").exists())  # ← ЯВНОЕ ПРЕОБРАЗОВАНИЕ
 
 
 class IsOwner(permissions.BasePermission):
@@ -26,8 +27,8 @@ class IsOwner(permissions.BasePermission):
 
     def has_object_permission(self, request: Request, view: Any, obj: Any) -> bool:
         # Проверяем, является ли пользователь владельцем объекта
-        if hasattr(obj, 'owner'):
-            return obj.owner == request.user   # type: ignore
+        if hasattr(obj, "owner"):
+            return obj.owner == request.user  # type: ignore
         return False
 
 
@@ -39,14 +40,14 @@ class IsOwnerOrModerator(permissions.BasePermission):
 
     def has_object_permission(self, request: Request, view: Any, obj: Any) -> bool:
         # Владелец может делать все со своим объектом
-        if hasattr(obj, 'owner') and obj.owner == request.user:
+        if hasattr(obj, "owner") and obj.owner == request.user:
             return True
 
         # Модераторы могут только просматривать и изменять
-        if request.user.groups.filter(name='moderators').exists():
+        if request.user.groups.filter(name="moderators").exists():
             if request.method in permissions.SAFE_METHODS:
                 return True
-            elif request.method in ['PUT', 'PATCH']:
+            elif request.method in ["PUT", "PATCH"]:
                 return True
             else:
                 return False
@@ -61,9 +62,9 @@ class CanCreateContent(permissions.BasePermission):
     """
 
     def has_permission(self, request: Request, view: Any) -> bool:
-        if request.method == 'POST':
+        if request.method == "POST":
             # Модераторы не могут создавать новый контент
-            if request.user.groups.filter(name='moderators').exists():
+            if request.user.groups.filter(name="moderators").exists():
                 return False
         return True
 
@@ -75,9 +76,9 @@ class CanDeleteContent(permissions.BasePermission):
     """
 
     def has_object_permission(self, request: Request, view: Any, obj: Any) -> bool:
-        if request.method == 'DELETE':
+        if request.method == "DELETE":
             # Владелец может удалять свой контент
-            if hasattr(obj, 'owner') and obj.owner == request.user:
+            if hasattr(obj, "owner") and obj.owner == request.user:
                 return True
             # Админы могут удалять любой контент
             if request.user.is_staff:
@@ -118,8 +119,7 @@ class CanEditUserProfile(permissions.BasePermission):
             return True
 
         # Модераторы и админы могут редактировать любой профиль
-        if (request.user.groups.filter(name='moderators').exists() or
-                request.user.is_staff):
+        if request.user.groups.filter(name="moderators").exists() or request.user.is_staff:
             return True
 
         return False
@@ -132,8 +132,7 @@ class IsModeratorOrAdmin(permissions.BasePermission):
 
     def has_permission(self, request: Request, view: Any) -> bool:
         return bool(  # ← ЯВНОЕ ПРЕОБРАЗОВАНИЕ
-            request.user and
-            request.user.is_authenticated and
-            (request.user.is_staff or
-             request.user.groups.filter(name='moderators').exists())
+            request.user
+            and request.user.is_authenticated
+            and (request.user.is_staff or request.user.groups.filter(name="moderators").exists())
         )

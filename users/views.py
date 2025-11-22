@@ -10,7 +10,7 @@ from rest_framework.response import Response
 
 from .filters import PaymentsFilter
 from .models import Payments, User
-from .permissions import CanEditUserProfile, CanViewUserProfile, IsModeratorOrAdmin
+from .permissions import CanEditUserProfile, IsModeratorOrAdmin
 from .serializers import (
     PaymentsSerializer,
     PrivateUserProfileSerializer,

@@ -52,5 +52,5 @@ class Command(BaseCommand):
             add_lesson_permission,
         )
 
-        self.stdout.write(self.style.SUCCESS('Группе модераторов назначены права: просмотр и изменение курсов/уроков'))
-        self.stdout.write(self.style.WARNING('Группе модераторов запрещены: создание и удаление курсов/уроков'))
+        self.stdout.write(self.style.SUCCESS("Группе модераторов назначены права: просмотр и изменение курсов/уроков"))
+        self.stdout.write(self.style.WARNING("Группе модераторов запрещены: создание и удаление курсов/уроков"))
