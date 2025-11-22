@@ -1,29 +1,36 @@
-from rest_framework import viewsets, filters
-from rest_framework.decorators import action
-from rest_framework.response import Response
-from rest_framework.permissions import AllowAny, IsAuthenticated
-from rest_framework.request import Request
+from typing import Any, Type
+
+from django.db.models import QuerySet
 from django_filters.rest_framework import DjangoFilterBackend
-from .models import User, Payments
-from .serializers import (
-    PublicUserProfileSerializer,
-    PrivateUserProfileSerializer,
-    UserUpdateSerializer,
-    UserCreateSerializer,
-    PaymentsSerializer
-)
+from rest_framework import filters, viewsets
+from rest_framework.decorators import action
+from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
+from rest_framework.request import Request
+from rest_framework.response import Response
+
 from .filters import PaymentsFilter
-from .permissions import CanViewUserProfile, CanEditUserProfile, IsModeratorOrAdmin
+from .models import Payments, User
+from .permissions import CanEditUserProfile, CanViewUserProfile, IsModeratorOrAdmin
+from .serializers import (
+    PaymentsSerializer,
+    PrivateUserProfileSerializer,
+    PublicUserProfileSerializer,
+    UserCreateSerializer,
+    UserUpdateSerializer,
+)
 
 
 class UserViewSet(viewsets.ModelViewSet):
     """
     ViewSet для управления профилями пользователей.
+    - Любой авторизованный пользователь может просматривать любой профиль
+    - Редактировать можно только свой профиль (кроме модераторов и админов)
+    - При просмотре чужого профиля показывается ограниченная информация
     """
 
     queryset = User.objects.all().prefetch_related("payments")
 
-    def get_permissions(self):
+    def get_permissions(self) -> list:
         """
         Настраиваем права доступа:
         - Регистрация доступна всем
@@ -34,16 +41,16 @@ class UserViewSet(viewsets.ModelViewSet):
         if self.action == "create":
             return [AllowAny()]
         elif self.action == "list":
-            return [IsAuthenticated(), IsAdminUser()]
+            return [IsAuthenticated(), IsModeratorOrAdmin()]
         elif self.action in ["retrieve"]:
-            return [IsAuthenticated(), CanViewUserProfile()]
+            return [IsAuthenticated()]
         elif self.action in ["update", "partial_update", "destroy"]:
             return [IsAuthenticated(), CanEditUserProfile()]
         elif self.action in ["me", "update_me"]:
             return [IsAuthenticated()]
         return [IsAuthenticated()]
 
-    def get_serializer_class(self):
+    def get_serializer_class(self) -> Type:
         """Выбираем сериализатор в зависимости от действия и контекста"""
         if self.action == "create":
             return UserCreateSerializer
@@ -59,12 +66,17 @@ class UserViewSet(viewsets.ModelViewSet):
             return PrivateUserProfileSerializer
         return PublicUserProfileSerializer
 
-    def get_queryset(self):
+    def get_queryset(self) -> QuerySet[User]:
         """
         Админы видят всех пользователей.
         Обычные пользователи при запросе списка получают пустой результат.
         """
-        if self.request.user.is_staff:
+        user = self.request.user
+
+        if not user.is_authenticated:
+            return User.objects.none()
+
+        if user.is_staff:
             return User.objects.all().prefetch_related("payments")
         elif self.action == "list":
             # Обычные пользователи не видят список всех пользователей
@@ -72,13 +84,31 @@ class UserViewSet(viewsets.ModelViewSet):
         else:
             return User.objects.all().prefetch_related("payments")
 
-    def is_own_profile(self):
+    def is_own_profile(self) -> bool:
         """
         Проверяет, запрашивает ли пользователь свой собственный профиль.
         """
-        if hasattr(self, "kwargs") and "pk" in self.kwargs:
-            return str(self.request.user.id) == self.kwargs["pk"]
-        return False
+        try:
+            if not hasattr(self, "kwargs") or "pk" not in self.kwargs:
+                return False
+
+            profile_id = self.kwargs["pk"]
+
+            # Обрабатываем случай, когда pk = 'me'
+            if profile_id == "me":
+                return True
+
+            # Проверяем, что пользователь аутентифицирован
+            if not self.request.user.is_authenticated:
+                return False
+
+            # Явное преобразование и сравнение
+            user_id: int = self.request.user.id
+            profile_id_int: int = int(profile_id)
+            return user_id == profile_id_int
+
+        except (ValueError, TypeError):
+            return False
 
     @action(detail=False, methods=["get"])
     def me(self, request: Request) -> Response:
@@ -94,7 +124,7 @@ class UserViewSet(viewsets.ModelViewSet):
         serializer.save()
         return Response(serializer.data)
 
-    def retrieve(self, request, *args, **kwargs):
+    def retrieve(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         """
         Переопределяем retrieve для логирования просмотров профилей
         """
@@ -120,7 +150,7 @@ class PaymentsViewSet(viewsets.ModelViewSet):
     ordering_fields = ["payment_date", "amount"]
     ordering = ["-payment_date"]
 
-    def get_permissions(self):
+    def get_permissions(self) -> list:
         """
         Права доступа для платежей:
         - Просмотр: владелец платежа, модераторы, админы
@@ -130,13 +160,41 @@ class PaymentsViewSet(viewsets.ModelViewSet):
             return [IsAuthenticated()]
         return [IsAdminUser()]
 
-    def get_queryset(self):
+    def get_queryset(self) -> QuerySet[Payments]:
         """
         Обычные пользователи видят только свои платежи.
         Модераторы и админы видят все платежи.
         """
         user = self.request.user
+        if not user.is_authenticated:
+            return Payments.objects.none()
+
         if user.is_staff or user.groups.filter(name="moderators").exists():
             return Payments.objects.all()
         else:
             return Payments.objects.filter(user=user)
+
+    def perform_create(self, serializer: PaymentsSerializer) -> None:
+        """Автоматически назначаем пользователя при создании платежа"""
+        if not self.request.user.is_staff:
+            serializer.save(user=self.request.user)
+        else:
+            serializer.save()
+
+    def create(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        return super().create(request, *args, **kwargs)
+
+    def list(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        return super().list(request, *args, **kwargs)
+
+    def retrieve(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        return super().retrieve(request, *args, **kwargs)
+
+    def update(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        return super().update(request, *args, **kwargs)
+
+    def partial_update(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        return super().partial_update(request, *args, **kwargs)
+
+    def destroy(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        return super().destroy(request, *args, **kwargs)
