@@ -1,15 +1,7 @@
-from typing import TYPE_CHECKING, List
-
-from django.contrib.auth.models import AbstractUser
 from django.db import models
+from django.conf import settings
 from django.utils.translation import gettext_lazy as _
-
-# Conditional import для избежания циклических импортов
-if TYPE_CHECKING:
-    from materials.models import Course, Lesson
-
-from .managers import CustomUserManager
-
+from typing import List, TYPE_CHECKING
 
 class User(AbstractUser):
     # Убираем поле username и делаем email как основное для аутентификации

@@ -1,16 +1,12 @@
-from typing import Any
-
 from django.http import HttpResponse
-from django.utils.translation import gettext_lazy as _
-from rest_framework import generics, viewsets
+from rest_framework import viewsets, generics
 from rest_framework.decorators import api_view
-from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
-
-from users.permissions import CanCreateContent, CanDeleteContent, IsModerator, IsOwner, IsOwnerOrModerator
-
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.request import Request
 from .models import Course, Lesson
 from .serializers import CourseSerializer, LessonSerializer
+from users.permissions import IsOwnerOrModerator, CanCreateContent, CanDeleteContent
 
 
 def home(request: Any) -> HttpResponse:
