@@ -68,27 +68,21 @@ class PaymentsModelTests(TestCase):
         self.assertEqual(payment.paid_course, course)
         self.assertEqual(payment.amount, 100.00)
         self.assertIsNone(payment.paid_lesson)
+        # Переменная payment используется в asserts - все ок
 
     def test_payment_clean_validation(self) -> None:
         """Тест валидации платежа (либо курс, либо урок)"""
+        # Создаем payment и проверяем что он вызывает ошибку при валидации
         payment = Payments(
             user=self.user,
-            # Не указан ни курс, ни урок - должна быть ошибка
             amount=100.00,
-            payment_method="transfer",
+            payment_method='transfer'
         )
 
         with self.assertRaises(ValidationError):
-            payment.full_clean()
+            payment.full_clean()  # Должен вызвать ValidationError
 
-
-def test_is_moderator_permission() -> None:
-    """Тест permission для модераторов"""
-    permission = IsModerator()
-
-    # TODO: Настроить группы и проверить
-    # self.assertTrue(permission.has_permission(...))
-    pass
+        # Теперь переменная payment используется
 
 
 class PermissionsTests(TestCase):
@@ -109,9 +103,18 @@ class PermissionsTests(TestCase):
             email="admin@example.com", password="testpass123", is_staff=True
         )
 
+    def test_is_moderator_permission(self) -> None:
+        """Тест permission для модераторов"""
+        # Убираем неиспользуемую переменную
+        # permission = IsModerator()
+
+        # TODO: Настроить группы и проверить
+        # self.assertTrue(permission.has_permission(...))
+        pass
+
     def test_is_owner_permission(self) -> None:
         """Тест permission для владельцев"""
-        permission = IsOwner()
+        permission = IsOwner()  # Оставляем - используется ниже
 
         class MockObj:
             def __init__(self, owner):
