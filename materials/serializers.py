@@ -1,29 +1,22 @@
 from rest_framework import serializers
-from .validators import YouTubeURLValidator, validate_youtube_url
+
 from .models import Course, Lesson
+from .validators import validate_youtube_url  # Импортируем функцию-валидатор
 
 
 class LessonSerializer(serializers.ModelSerializer):
     """
     Сериализатор для уроков с валидацией видео-ссылок
     """
+
+    # Используем функцию-валидатор на уровне поля
+    video_url = serializers.URLField(required=False, allow_blank=True, validators=[validate_youtube_url])
+
     class Meta:
         model = Lesson
-        fields = [
-            'id', 'title', 'description', 'video_url',
-            'course', 'order', 'owner', 'created_at'
-        ]
-        read_only_fields = ['id', 'owner', 'created_at']
-        validators = [
-            YouTubeURLValidator(field='video_url')
-        ]
-
-    # Альтернативный вариант с функцией-валидатором:
-    # video_url = serializers.URLField(
-    #     required=False,
-    #     allow_blank=True,
-    #     validators=[validate_youtube_url]
-    # )
+        fields = ["id", "title", "description", "video_url", "course", "order", "owner", "created_at"]
+        read_only_fields = ["id", "owner", "created_at"]
+        # УБИРАЕМ валидатор из Meta - он дублируется
 
 
 class CourseSerializer(serializers.ModelSerializer):
@@ -45,10 +38,8 @@ class CourseSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ['id', 'owner', 'created_at', 'updated_at']
-
+        read_only_fields = ["id", "owner", "created_at", "updated_at"]
 
     def get_lessons_count(self, obj: Course) -> int:
         """Метод для получения количества уроков в курсе"""
-        count = obj.lessons.count()
-        return int(count)  # ← Явное преобразование в int
+        return obj.lessons.count()

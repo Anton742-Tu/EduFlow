@@ -43,14 +43,12 @@ class IsOwnerOrModerator(permissions.BasePermission):
         if hasattr(obj, "owner") and obj.owner == request.user:
             return True
 
-        # Модераторы могут только просматривать и изменять
+        # Модераторы могут только просматривать и изменять (PUT/PATCH)
         if request.user.groups.filter(name="moderators").exists():
-            if request.method in permissions.SAFE_METHODS:
-                return True
-            elif request.method in ["PUT", "PATCH"]:
+            if request.method in permissions.SAFE_METHODS + ["PUT", "PATCH"]:
                 return True
             else:
-                return False
+                return False  # Запрещаем DELETE для модераторов
 
         return False
 

@@ -50,7 +50,7 @@ class Lesson(models.Model):
         _("video URL"),
         blank=True,
         help_text=_("Enter the video URL for this lesson"),
-        validators=[validate_youtube_url]  # Добавляем валидатор здесь
+        validators=[validate_youtube_url],  # Добавляем валидатор здесь
     )
     course = models.ForeignKey(
         Course,
