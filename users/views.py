@@ -2,19 +2,20 @@ from typing import Any, Type
 
 from django.db.models import QuerySet
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import filters, viewsets
+from rest_framework import filters, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
 
 from .filters import PaymentsFilter
-from .models import Payments, User
+from .models import Payments, Subscription, User
 from .permissions import CanEditUserProfile, IsModeratorOrAdmin
 from .serializers import (
     PaymentsSerializer,
     PrivateUserProfileSerializer,
     PublicUserProfileSerializer,
+    SubscriptionSerializer,
     UserCreateSerializer,
     UserUpdateSerializer,
 )
@@ -198,3 +199,61 @@ class PaymentsViewSet(viewsets.ModelViewSet):
 
     def destroy(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         return super().destroy(request, *args, **kwargs)
+
+
+class SubscriptionViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet для управления подписками на курсы
+    """
+
+    serializer_class = SubscriptionSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self) -> QuerySet[Subscription]:
+        """Пользователь видит только свои подписки"""
+        return Subscription.objects.filter(user=self.request.user)
+
+    def perform_create(self, serializer: SubscriptionSerializer) -> None:
+        """Автоматически назначаем пользователя при создании подписки"""
+        serializer.save(user=self.request.user)
+
+    @action(detail=False, methods=["post"])
+    def subscribe(self, request: Request) -> Response:
+        """Эндпоинт для подписки на курс"""
+        course_id = request.data.get("course_id")
+
+        if not course_id:
+            return Response({"error": "course_id обязателен"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            from materials.models import Course
+
+            course = Course.objects.get(id=course_id)
+        except Course.DoesNotExist:
+            return Response({"error": "Курс не найден"}, status=status.HTTP_404_NOT_FOUND)
+
+        # Проверяем, не подписан ли уже пользователь
+        if Subscription.objects.filter(user=request.user, course=course).exists():
+            return Response({"error": "Вы уже подписаны на этот курс"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Создаем подписку
+        subscription = Subscription.objects.create(user=request.user, course=course)
+
+        serializer = self.get_serializer(subscription)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    @action(detail=False, methods=["post"])
+    def unsubscribe(self, request: Request) -> Response:
+        """Эндпоинт для отписки от курса"""
+        course_id = request.data.get("course_id")
+
+        if not course_id:
+            return Response({"error": "course_id обязателен"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            subscription = Subscription.objects.get(user=request.user, course_id=course_id)
+        except Subscription.DoesNotExist:
+            return Response({"error": "Подписка не найдена"}, status=status.HTTP_404_NOT_FOUND)
+
+        subscription.delete()
+        return Response({"message": "Вы успешно отписались от курса"}, status=status.HTTP_200_OK)

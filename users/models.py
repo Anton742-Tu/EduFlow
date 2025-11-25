@@ -84,3 +84,26 @@ class Payments(models.Model):
             raise ValidationError(_("Можно оплатить либо курс, либо урок, но не оба одновременно."))
         if not self.paid_course and not self.paid_lesson:
             raise ValidationError(_("Должен быть оплачен либо курс, либо урок."))
+
+
+class Subscription(models.Model):
+    """
+    Модель подписки пользователя на обновления курса
+    """
+
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="subscriptions", verbose_name=_("пользователь")
+    )
+    course = models.ForeignKey(
+        "materials.Course", on_delete=models.CASCADE, related_name="subscriptions", verbose_name=_("курс")
+    )
+    subscribed_at = models.DateTimeField(_("дата подписки"), auto_now_add=True)
+
+    class Meta:
+        verbose_name = _("подписка")
+        verbose_name_plural = _("подписки")
+        unique_together = ["user", "course"]  # Одна подписка на курс для пользователя
+        ordering = ["-subscribed_at"]
+
+    def __str__(self) -> str:
+        return f"{self.user.email} подписан на {self.course.title}"

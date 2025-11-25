@@ -24,6 +24,7 @@ class CourseSerializer(serializers.ModelSerializer):
 
     lessons_count = serializers.SerializerMethodField()
     lessons = LessonSerializer(many=True, read_only=True)
+    is_subscribed = serializers.SerializerMethodField()  # Добавляем поле подписки
 
     class Meta:
         model = Course
@@ -35,6 +36,7 @@ class CourseSerializer(serializers.ModelSerializer):
             "owner",
             "lessons_count",
             "lessons",
+            "is_subscribed",  # Добавляем поле
             "created_at",
             "updated_at",
         ]
@@ -43,3 +45,13 @@ class CourseSerializer(serializers.ModelSerializer):
     def get_lessons_count(self, obj: Course) -> int:
         """Метод для получения количества уроков в курсе"""
         return obj.lessons.count()
+
+    def get_is_subscribed(self, obj: Course) -> bool:
+        """Метод для проверки подписки текущего пользователя на курс"""
+        request = self.context.get("request")
+        if request and request.user.is_authenticated:
+            # Импортируем здесь чтобы избежать circular import
+            from users.models import Subscription
+
+            return Subscription.objects.filter(user=request.user, course=obj).exists()
+        return False

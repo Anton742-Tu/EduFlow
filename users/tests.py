@@ -73,11 +73,7 @@ class PaymentsModelTests(TestCase):
     def test_payment_clean_validation(self) -> None:
         """Тест валидации платежа (либо курс, либо урок)"""
         # Создаем payment и проверяем что он вызывает ошибку при валидации
-        payment = Payments(
-            user=self.user,
-            amount=100.00,
-            payment_method='transfer'
-        )
+        payment = Payments(user=self.user, amount=100.00, payment_method="transfer")
 
         with self.assertRaises(ValidationError):
             payment.full_clean()  # Должен вызвать ValidationError
