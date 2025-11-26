@@ -1,5 +1,6 @@
 from typing import Any
 
+from django.db.models import Model
 from rest_framework import permissions
 from rest_framework.request import Request
 
@@ -38,21 +39,22 @@ class IsOwnerOrModerator(permissions.BasePermission):
     Модераторы могут просматривать и редактировать, но не создавать/удалять.
     """
 
-    def has_object_permission(self, request, view, obj):
+    def has_object_permission(self, request: Request, view: Any, obj: Model) -> bool:
+        """
+        Проверяет права доступа к конкретному объекту.
+        """
         # Разрешаем безопасные методы (GET, HEAD, OPTIONS) для всех авторизованных
         if request.method in permissions.SAFE_METHODS:
             return True
 
         # Для PUT, PATCH - разрешаем владельцу или модератору
-        if request.method in ["PUT", "PATCH"]:
-            return (
-                obj.owner == request.user
-                or request.user.groups.filter(name="moderators").exists()
-                or request.user.is_staff
-            )
+        if request.method in ['PUT', 'PATCH']:
+            return (obj.owner == request.user or
+                    request.user.groups.filter(name='moderators').exists() or
+                    request.user.is_staff)
 
         # Для DELETE - только владелец или админ
-        if request.method == "DELETE":
+        if request.method == 'DELETE':
             return obj.owner == request.user or request.user.is_staff
 
         return False
@@ -64,9 +66,12 @@ class CanCreateContent(permissions.BasePermission):
     Обычные пользователи могут создавать, модераторы - нет.
     """
 
-    def has_permission(self, request, view):
+    def has_permission(self, request: Request, view: Any) -> bool:
+        """
+        Проверяет права доступа для создания контента.
+        """
         # Модераторы не могут создавать контент
-        if request.user.groups.filter(name="moderators").exists():
+        if request.user.groups.filter(name='moderators').exists():
             return False
         return True
 
@@ -77,7 +82,10 @@ class CanDeleteContent(permissions.BasePermission):
     Только владельцы или администраторы могут удалять.
     """
 
-    def has_object_permission(self, request, view, obj):
+    def has_object_permission(self, request: Request, view: Any, obj: Model) -> bool:
+        """
+        Проверяет права доступа для удаления объекта.
+        """
         return obj.owner == request.user or request.user.is_staff
 
 
