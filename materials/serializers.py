@@ -1,57 +1,64 @@
+from typing import Any, Dict
+
 from rest_framework import serializers
 
 from .models import Course, Lesson
-from .validators import validate_youtube_url  # Импортируем функцию-валидатор
+
+
+class CourseSerializer(serializers.ModelSerializer):
+    """
+    Сериализатор для курсов.
+    """
+
+    lessons_count = serializers.SerializerMethodField()
+    is_subscribed = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Course
+        fields = ["id", "title", "description", "owner", "created_at", "updated_at", "lessons_count", "is_subscribed"]
+        read_only_fields = ["id", "owner", "created_at", "updated_at"]
+
+    def get_lessons_count(self, obj: Course) -> int:
+        """
+        Возвращает количество уроков в курсе.
+        """
+        count: int = obj.lessons.count()
+        return count
+
+    def get_is_subscribed(self, obj: Course) -> bool:
+        """
+        Проверяет, подписан ли текущий пользователь на курс.
+        """
+        user = self.context["request"].user
+        if user.is_authenticated:
+            from users.models import Subscription
+
+            is_subscribed: bool = Subscription.objects.filter(user=user, course=obj).exists()
+            return is_subscribed
+        return False
 
 
 class LessonSerializer(serializers.ModelSerializer):
     """
-    Сериализатор для уроков с валидацией видео-ссылок
+    Сериализатор для уроков.
     """
-
-    # Используем функцию-валидатор на уровне поля
-    video_url = serializers.URLField(required=False, allow_blank=True, validators=[validate_youtube_url])
 
     class Meta:
         model = Lesson
         fields = ["id", "title", "description", "video_url", "course", "order", "owner", "created_at"]
         read_only_fields = ["id", "owner", "created_at"]
-        # УБИРАЕМ валидатор из Meta - он дублируется
 
+    def validate_video_url(self, value: str) -> str:
+        """
+        Валидация YouTube ссылки.
+        """
+        if value and "youtube.com" not in value and "youtu.be" not in value:
+            raise serializers.ValidationError("Разрешены только ссылки на YouTube")
+        return value
 
-class CourseSerializer(serializers.ModelSerializer):
-    """Сериализатор для курса"""
-
-    lessons_count = serializers.SerializerMethodField()
-    lessons = LessonSerializer(many=True, read_only=True)
-    is_subscribed = serializers.SerializerMethodField()  # Добавляем поле подписки
-
-    class Meta:
-        model = Course
-        fields = [
-            "id",
-            "title",
-            "preview",
-            "description",
-            "owner",
-            "lessons_count",
-            "lessons",
-            "is_subscribed",  # Добавляем поле
-            "created_at",
-            "updated_at",
-        ]
-        read_only_fields = ["id", "owner", "created_at", "updated_at"]
-
-    def get_lessons_count(self, obj: Course) -> int:
-        """Метод для получения количества уроков в курсе"""
-        return obj.lessons.count()
-
-    def get_is_subscribed(self, obj: Course) -> bool:
-        """Метод для проверки подписки текущего пользователя на курс"""
-        request = self.context.get("request")
-        if request and request.user.is_authenticated:
-            # Импортируем здесь чтобы избежать circular import
-            from users.models import Subscription
-
-            return Subscription.objects.filter(user=request.user, course=obj).exists()
-        return False
+    def create(self, validated_data: Dict[str, Any]) -> Lesson:
+        """
+        Создание урока с автоматическим назначением владельца.
+        """
+        validated_data["owner"] = self.context["request"].user
+        return super().create(validated_data)

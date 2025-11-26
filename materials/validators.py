@@ -13,7 +13,7 @@ class YouTubeURLValidator:
     def __init__(self, field="video_url"):
         self.field = field
 
-    def __call__(self, value):
+    def __call__(self, value: str) -> None:
         # Разрешаем пустые значения и None
         if not value:
             return
@@ -51,12 +51,7 @@ class YouTubeURLValidator:
 
 def validate_youtube_url(value: str) -> None:
     """
-    Функция-валидатор для проверки YouTube ссылок
+    Валидатор для проверки, что ссылка ведет на YouTube.
     """
-    # Разрешаем пустые значения
-    if not value:
-        return
-
-    validator = YouTubeURLValidator()
-    if not validator.is_valid_youtube_url(value):
-        raise ValidationError(_("Разрешены только ссылки на YouTube (youtube.com)."), code="invalid_url")
+    if value and "youtube.com" not in value and "youtu.be" not in value:
+        raise ValidationError("Разрешены только ссылки на YouTube")
