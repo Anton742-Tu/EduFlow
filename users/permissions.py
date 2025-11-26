@@ -34,56 +34,51 @@ class IsOwner(permissions.BasePermission):
 
 class IsOwnerOrModerator(permissions.BasePermission):
     """
-    Права доступа для владельцев или модераторов.
-    Владельцы могут делать все со своими объектами, модераторы - только просмотр и изменение.
+    Разрешение для владельца объекта или модератора.
+    Модераторы могут просматривать и редактировать, но не создавать/удалять.
     """
 
-    def has_object_permission(self, request: Request, view: Any, obj: Any) -> bool:
-        # Владелец может делать все со своим объектом
-        if hasattr(obj, "owner") and obj.owner == request.user:
+    def has_object_permission(self, request, view, obj):
+        # Разрешаем безопасные методы (GET, HEAD, OPTIONS) для всех авторизованных
+        if request.method in permissions.SAFE_METHODS:
             return True
 
-        # Модераторы могут только просматривать и изменять (PUT/PATCH)
-        if request.user.groups.filter(name="moderators").exists():
-            if request.method in permissions.SAFE_METHODS + ["PUT", "PATCH"]:
-                return True
-            else:
-                return False  # Запрещаем DELETE для модераторов
+        # Для PUT, PATCH - разрешаем владельцу или модератору
+        if request.method in ["PUT", "PATCH"]:
+            return (
+                obj.owner == request.user
+                or request.user.groups.filter(name="moderators").exists()
+                or request.user.is_staff
+            )
+
+        # Для DELETE - только владелец или админ
+        if request.method == "DELETE":
+            return obj.owner == request.user or request.user.is_staff
 
         return False
 
 
 class CanCreateContent(permissions.BasePermission):
     """
-    Права доступа для создания контента.
-    Запрещает создание модераторам.
+    Разрешение на создание контента.
+    Обычные пользователи могут создавать, модераторы - нет.
     """
 
-    def has_permission(self, request: Request, view: Any) -> bool:
-        if request.method == "POST":
-            # Модераторы не могут создавать новый контент
-            if request.user.groups.filter(name="moderators").exists():
-                return False
+    def has_permission(self, request, view):
+        # Модераторы не могут создавать контент
+        if request.user.groups.filter(name="moderators").exists():
+            return False
         return True
 
 
 class CanDeleteContent(permissions.BasePermission):
     """
-    Права доступа для удаления контента.
-    Разрешает удаление только владельцам и админам.
+    Разрешение на удаление контента.
+    Только владельцы или администраторы могут удалять.
     """
 
-    def has_object_permission(self, request: Request, view: Any, obj: Any) -> bool:
-        if request.method == "DELETE":
-            # Владелец может удалять свой контент
-            if hasattr(obj, "owner") and obj.owner == request.user:
-                return True
-            # Админы могут удалять любой контент
-            if request.user.is_staff:
-                return True
-            # Модераторы не могут удалять
-            return False
-        return True
+    def has_object_permission(self, request, view, obj):
+        return obj.owner == request.user or request.user.is_staff
 
 
 class CanViewUserProfile(permissions.BasePermission):
@@ -95,7 +90,7 @@ class CanViewUserProfile(permissions.BasePermission):
 
     def has_permission(self, request: Request, view: Any) -> bool:
         # Разрешаем доступ только аутентифицированным пользователям
-        return bool(request.user and request.user.is_authenticated)  # ← ЯВНОЕ ПРЕОБРАЗОВАНИЕ
+        return bool(request.user and request.user.is_authenticated)
 
     def has_object_permission(self, request: Request, view: Any, obj: Any) -> bool:
         # Любой авторизованный пользователь может просматривать любой профиль
@@ -129,7 +124,7 @@ class IsModeratorOrAdmin(permissions.BasePermission):
     """
 
     def has_permission(self, request: Request, view: Any) -> bool:
-        return bool(  # ← ЯВНОЕ ПРЕОБРАЗОВАНИЕ
+        return bool(
             request.user
             and request.user.is_authenticated
             and (request.user.is_staff or request.user.groups.filter(name="moderators").exists())

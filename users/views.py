@@ -8,9 +8,10 @@ from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
 
+from materials.paginators import StandardResultsSetPagination
+
 from .filters import PaymentsFilter
 from .models import Payments, Subscription, User
-from materials.paginators import StandardResultsSetPagination
 from .permissions import CanEditUserProfile, IsModeratorOrAdmin
 from .serializers import (
     PaymentsSerializer,

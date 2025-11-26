@@ -1,17 +1,17 @@
 from django.db.models import QuerySet
 from django.http import HttpRequest, HttpResponse
-from rest_framework import generics, viewsets
-from rest_framework.decorators import api_view
+from rest_framework import generics, status, viewsets  # Добавляем status
+from rest_framework.decorators import action, api_view  # Добавляем action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
 
+from users.models import Subscription
 from users.permissions import CanCreateContent, CanDeleteContent, IsOwnerOrModerator
 
 from .models import Course, Lesson
 from .paginators import StandardResultsSetPagination
 from .serializers import CourseSerializer, LessonSerializer
-from users.models import Subscription
 
 
 def home(request: HttpRequest) -> HttpResponse:
@@ -78,19 +78,65 @@ class CourseViewSet(viewsets.ModelViewSet):
         """
         serializer.save(owner=self.request.user)
 
+    @action(detail=True, methods=["post"])
+    def subscribe(self, request, pk=None) -> Response:
+        """Эндпоинт для подписки на курс"""
+        course = self.get_object()
+        user = request.user
 
-class LessonListCreateAPIView(generics.ListCreateAPIView):
+        # Создаем подписку (get_or_create сам проверит существование)
+        subscription, created = Subscription.objects.get_or_create(user=user, course=course)
+
+        return Response(
+            {"message": "Подписка оформлена", "course": course.title, "subscribed": True, "created": created},
+            status=status.HTTP_200_OK,
+        )
+
+    @action(detail=True, methods=["post"])
+    def unsubscribe(self, request, pk=None) -> Response:
+        """Эндпоинт для отписки от курса"""
+        course = self.get_object()
+        user = request.user
+
+        try:
+            subscription = Subscription.objects.get(user=user, course=course)
+            subscription.delete()
+            return Response(
+                {"message": "Подписка отменена", "course": course.title, "subscribed": False},
+                status=status.HTTP_200_OK,
+            )
+        except Subscription.DoesNotExist:
+            return Response({"message": "Подписка не найдена"}, status=status.HTTP_404_NOT_FOUND)
+
+
+class LessonViewSet(viewsets.ModelViewSet):
     """
-    Generic-класс для получения списка уроков и создания нового урока.
-    Обычные пользователи видят только свои уроки.
+    ViewSet для CRUD операций с уроками.
+    Обычные пользователи видят и редактируют только свои уроки.
+    Модераторы видят и редактируют все уроки, но не могут создавать/удалять.
     """
 
     serializer_class = LessonSerializer
     pagination_class = StandardResultsSetPagination
+    queryset = Lesson.objects.all()
 
     def get_permissions(self) -> list:
-        if self.request.method == "POST":
+        """
+        Права доступа для уроков:
+        - Создание: обычные пользователи (не модераторы)
+        - Просмотр списка: все авторизованные (видят только свои, кроме модераторов)
+        - Просмотр деталей: владелец или модератор
+        - Изменение: владелец или модератор
+        - Удаление: только владелец или админ
+        """
+        if self.action == "create":
             return [IsAuthenticated(), CanCreateContent()]
+        elif self.action in ["update", "partial_update"]:
+            return [IsAuthenticated(), IsOwnerOrModerator()]
+        elif self.action == "destroy":
+            return [IsAuthenticated(), CanDeleteContent()]
+        elif self.action in ["list", "retrieve"]:
+            return [IsAuthenticated()]
         return [IsAuthenticated()]
 
     def get_queryset(self) -> QuerySet[Lesson]:
@@ -101,60 +147,12 @@ class LessonListCreateAPIView(generics.ListCreateAPIView):
         user = self.request.user
 
         if user.is_staff or user.groups.filter(name="moderators").exists():
-            return Lesson.objects.all()
+            return Lesson.objects.all().select_related("course", "owner")
         else:
-            return Lesson.objects.filter(owner=user)
+            return Lesson.objects.filter(owner=user).select_related("course", "owner")
 
     def perform_create(self, serializer: LessonSerializer) -> None:
+        """
+        При создании урока автоматически устанавливаем владельца
+        """
         serializer.save(owner=self.request.user)
-
-
-class LessonRetrieveAPIView(generics.RetrieveAPIView):
-    """
-    Generic-класс для получения одного урока.
-    Доступно владельцам и модераторам.
-    """
-
-    serializer_class = LessonSerializer
-    permission_classes = [IsAuthenticated, IsOwnerOrModerator]
-
-    def get_queryset(self) -> QuerySet[Lesson]:
-        user = self.request.user
-        if user.is_staff or user.groups.filter(name="moderators").exists():
-            return Lesson.objects.all()
-        else:
-            return Lesson.objects.filter(owner=user)
-
-
-class LessonUpdateAPIView(generics.UpdateAPIView):
-    """
-    Generic-класс для обновления урока.
-    Доступно владельцам и модераторам.
-    """
-
-    serializer_class = LessonSerializer
-    permission_classes = [IsAuthenticated, IsOwnerOrModerator]
-
-    def get_queryset(self) -> QuerySet[Lesson]:
-        user = self.request.user
-        if user.is_staff or user.groups.filter(name="moderators").exists():
-            return Lesson.objects.all()
-        else:
-            return Lesson.objects.filter(owner=user)
-
-
-class LessonDestroyAPIView(generics.DestroyAPIView):
-    """
-    Generic-класс для удаления урока.
-    Доступно только владельцам и админам.
-    """
-
-    serializer_class = LessonSerializer
-    permission_classes = [IsAuthenticated, CanDeleteContent]
-
-    def get_queryset(self) -> QuerySet[Lesson]:
-        user = self.request.user
-        if user.is_staff:
-            return Lesson.objects.all()
-        else:
-            return Lesson.objects.filter(owner=user)
