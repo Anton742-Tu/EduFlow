@@ -9,7 +9,7 @@ from users.models import Subscription
 
 from .models import Course, Lesson
 from .serializers import LessonSerializer
-from .validators import YouTubeURLValidator, validate_youtube_url
+from .validators import YouTubeURLValidator
 
 User = get_user_model()
 

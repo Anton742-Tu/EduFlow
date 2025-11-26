@@ -1,8 +1,8 @@
-from typing import Any, Optional
+from typing import Optional
 
 from django.db.models import QuerySet
 from django.http import HttpRequest, HttpResponse
-from rest_framework import generics, status, viewsets
+from rest_framework import status, viewsets
 from rest_framework.decorators import action, api_view
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
