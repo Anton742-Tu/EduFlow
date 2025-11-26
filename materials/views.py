@@ -10,6 +10,7 @@ from users.permissions import CanCreateContent, CanDeleteContent, IsOwnerOrModer
 
 from .models import Course, Lesson
 from .serializers import CourseSerializer, LessonSerializer
+from .paginators import StandardResultsSetPagination
 
 
 def home(request: HttpRequest) -> HttpResponse:
@@ -35,6 +36,7 @@ class CourseViewSet(viewsets.ModelViewSet):
     """
 
     serializer_class = CourseSerializer
+    pagination_class = StandardResultsSetPagination
 
     def get_permissions(self) -> list:
         """
@@ -83,6 +85,7 @@ class LessonListCreateAPIView(generics.ListCreateAPIView):
     """
 
     serializer_class = LessonSerializer
+    pagination_class = StandardResultsSetPagination
 
     def get_permissions(self) -> list:
         if self.request.method == "POST":
