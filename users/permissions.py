@@ -49,15 +49,17 @@ class IsOwnerOrModerator(permissions.BasePermission):
 
         # Для PUT, PATCH - разрешаем владельцу или модератору
         if request.method in ["PUT", "PATCH"]:
-            return (
+            can_edit: bool = (
                 obj.owner == request.user
                 or request.user.groups.filter(name="moderators").exists()
                 or request.user.is_staff
             )
+            return can_edit
 
         # Для DELETE - только владелец или админ
         if request.method == "DELETE":
-            return obj.owner == request.user or request.user.is_staff
+            can_delete: bool = obj.owner == request.user or request.user.is_staff
+            return can_delete
 
         return False
 
@@ -88,7 +90,8 @@ class CanDeleteContent(permissions.BasePermission):
         """
         Проверяет права доступа для удаления объекта.
         """
-        return obj.owner == request.user or request.user.is_staff
+        can_delete_object: bool = obj.owner == request.user or request.user.is_staff
+        return can_delete_object
 
 
 class CanViewUserProfile(permissions.BasePermission):

@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Optional
 
 from django.db.models import QuerySet
 from django.http import HttpRequest, HttpResponse
@@ -81,7 +81,7 @@ class CourseViewSet(viewsets.ModelViewSet):
         serializer.save(owner=self.request.user)
 
     @action(detail=True, methods=["post"])
-    def subscribe(self, request: Request, pk: str = None) -> Response:
+    def subscribe(self, request: Request, pk: Optional[str] = None) -> Response:
         """Эндпоинт для подписки на курс"""
         course = self.get_object()
         user = request.user
@@ -95,7 +95,7 @@ class CourseViewSet(viewsets.ModelViewSet):
         )
 
     @action(detail=True, methods=["post"])
-    def unsubscribe(self, request: Request, pk: str = None) -> Response:
+    def unsubscribe(self, request: Request, pk: Optional[str] = None) -> Response:
         """Эндпоинт для отписки от курса"""
         course = self.get_object()
         user = request.user

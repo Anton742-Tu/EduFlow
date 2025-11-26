@@ -61,4 +61,5 @@ class LessonSerializer(serializers.ModelSerializer):
         Создание урока с автоматическим назначением владельца.
         """
         validated_data["owner"] = self.context["request"].user
-        return super().create(validated_data)
+        lesson: Lesson = super().create(validated_data)
+        return lesson
