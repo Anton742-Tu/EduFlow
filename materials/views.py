@@ -1,7 +1,9 @@
+from typing import Any
+
 from django.db.models import QuerySet
 from django.http import HttpRequest, HttpResponse
-from rest_framework import generics, status, viewsets  # Добавляем status
-from rest_framework.decorators import action, api_view  # Добавляем action
+from rest_framework import generics, status, viewsets
+from rest_framework.decorators import action, api_view
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -79,7 +81,7 @@ class CourseViewSet(viewsets.ModelViewSet):
         serializer.save(owner=self.request.user)
 
     @action(detail=True, methods=["post"])
-    def subscribe(self, request, pk=None) -> Response:
+    def subscribe(self, request: Request, pk: str = None) -> Response:
         """Эндпоинт для подписки на курс"""
         course = self.get_object()
         user = request.user
@@ -93,7 +95,7 @@ class CourseViewSet(viewsets.ModelViewSet):
         )
 
     @action(detail=True, methods=["post"])
-    def unsubscribe(self, request, pk=None) -> Response:
+    def unsubscribe(self, request: Request, pk: str = None) -> Response:
         """Эндпоинт для отписки от курса"""
         course = self.get_object()
         user = request.user
@@ -143,6 +145,7 @@ class LessonViewSet(viewsets.ModelViewSet):
         """
         Обычные пользователи видят только свои уроки.
         Модераторы и админы видят все уроки.
+        Переопределяем базовый queryset для фильтрации по владельцу.
         """
         user = self.request.user
 

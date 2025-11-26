@@ -48,13 +48,15 @@ class IsOwnerOrModerator(permissions.BasePermission):
             return True
 
         # Для PUT, PATCH - разрешаем владельцу или модератору
-        if request.method in ['PUT', 'PATCH']:
-            return (obj.owner == request.user or
-                    request.user.groups.filter(name='moderators').exists() or
-                    request.user.is_staff)
+        if request.method in ["PUT", "PATCH"]:
+            return (
+                obj.owner == request.user
+                or request.user.groups.filter(name="moderators").exists()
+                or request.user.is_staff
+            )
 
         # Для DELETE - только владелец или админ
-        if request.method == 'DELETE':
+        if request.method == "DELETE":
             return obj.owner == request.user or request.user.is_staff
 
         return False
@@ -71,7 +73,7 @@ class CanCreateContent(permissions.BasePermission):
         Проверяет права доступа для создания контента.
         """
         # Модераторы не могут создавать контент
-        if request.user.groups.filter(name='moderators').exists():
+        if request.user.groups.filter(name="moderators").exists():
             return False
         return True
 
