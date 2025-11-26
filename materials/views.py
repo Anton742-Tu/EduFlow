@@ -9,8 +9,9 @@ from rest_framework.response import Response
 from users.permissions import CanCreateContent, CanDeleteContent, IsOwnerOrModerator
 
 from .models import Course, Lesson
-from .serializers import CourseSerializer, LessonSerializer
 from .paginators import StandardResultsSetPagination
+from .serializers import CourseSerializer, LessonSerializer
+from users.models import Subscription
 
 
 def home(request: HttpRequest) -> HttpResponse:

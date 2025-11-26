@@ -4,9 +4,11 @@ from django.test import TestCase
 from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
 
-from .models import Course, Lesson
+from .models import Course, Lesson, Subscription
 from .serializers import LessonSerializer
 from .validators import YouTubeURLValidator, validate_youtube_url
+
+User = get_user_model()
 
 
 class YouTubeURLValidatorTests(TestCase):
@@ -214,3 +216,300 @@ class CourseViewSetAPITests(APITestCase):
         response = self.client.get("/api/courses/")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data["results"]), 1)
+
+
+class LessonCRUDTestCase(APITestCase):
+    """
+    Тестирование CRUD операций для уроков с разными правами доступа.
+    """
+
+    def setUp(self) -> None:
+        """Заполнение базы данных тестовыми данными"""
+        # Создаем пользователей с разными ролями
+        self.regular_user = User.objects.create_user(
+            email="regular@test.com", password="testpass123", first_name="Regular", last_name="User"
+        )
+
+        self.moderator_user = User.objects.create_user(
+            email="moderator@test.com", password="testpass123", first_name="Moderator", last_name="User"
+        )
+
+        self.admin_user = User.objects.create_user(
+            email="admin@test.com", password="testpass123", first_name="Admin", last_name="User", is_staff=True
+        )
+
+        # Создаем курс
+        self.course = Course.objects.create(
+            title="Test Course", description="Test Course Description", owner=self.regular_user
+        )
+
+        # Создаем уроки
+        self.lesson1 = Lesson.objects.create(
+            title="Lesson 1", description="Lesson 1 Description", course=self.course, owner=self.regular_user, order=1
+        )
+
+        self.lesson2 = Lesson.objects.create(
+            title="Lesson 2", description="Lesson 2 Description", course=self.course, owner=self.regular_user, order=2
+        )
+
+        # Создаем урок другого пользователя
+        self.other_user = User.objects.create_user(email="other@test.com", password="testpass123")
+
+        self.other_lesson = Lesson.objects.create(
+            title="Other Lesson",
+            description="Other Lesson Description",
+            course=self.course,
+            owner=self.other_user,
+            order=3,
+        )
+
+    def test_lesson_list_regular_user(self) -> None:
+        """Тест получения списка уроков для обычного пользователя"""
+        self.client.force_authenticate(user=self.regular_user)
+        response = self.client.get("/api/lessons/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        # Обычный пользователь видит только свои уроки
+        self.assertEqual(len(response.data["results"]), 2)
+        lesson_titles = [lesson["title"] for lesson in response.data["results"]]
+        self.assertIn("Lesson 1", lesson_titles)
+        self.assertIn("Lesson 2", lesson_titles)
+        self.assertNotIn("Other Lesson", lesson_titles)
+
+    def test_lesson_list_moderator(self) -> None:
+        """Тест получения списка уроков для модератора"""
+        self.client.force_authenticate(user=self.moderator_user)
+        response = self.client.get("/api/lessons/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        # Модератор видит все уроки
+        self.assertEqual(len(response.data["results"]), 3)
+
+    def test_lesson_create_regular_user(self) -> None:
+        """Тест создания урока обычным пользователем"""
+        self.client.force_authenticate(user=self.regular_user)
+
+        lesson_data = {
+            "title": "New Lesson",
+            "description": "New Lesson Description",
+            "course": self.course.id,
+            "order": 4,
+        }
+
+        response = self.client.post("/api/lessons/", lesson_data)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        # Проверяем, что урок создан и владелец установлен правильно
+        lesson = Lesson.objects.get(title="New Lesson")
+        self.assertEqual(lesson.owner, self.regular_user)
+        self.assertEqual(lesson.course, self.course)
+
+    def test_lesson_create_moderator_denied(self) -> None:
+        """Тест запрета создания урока модератором"""
+        self.client.force_authenticate(user=self.moderator_user)
+
+        lesson_data = {
+            "title": "Moderator Lesson",
+            "description": "Moderator Lesson Description",
+            "course": self.course.id,
+            "order": 5,
+        }
+
+        response = self.client.post("/api/lessons/", lesson_data)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_lesson_retrieve_owner(self) -> None:
+        """Тест получения урока владельцем"""
+        self.client.force_authenticate(user=self.regular_user)
+        response = self.client.get(f"/api/lessons/{self.lesson1.id}/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["title"], "Lesson 1")
+
+    def test_lesson_retrieve_moderator(self) -> None:
+        """Тест получения урока модератором"""
+        self.client.force_authenticate(user=self.moderator_user)
+        response = self.client.get(f"/api/lessons/{self.lesson1.id}/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["title"], "Lesson 1")
+
+    def test_lesson_retrieve_other_user_denied(self) -> None:
+        """Тест запрета получения чужого урока обычным пользователем"""
+        other_user = User.objects.create_user(email="another@test.com", password="testpass123")
+        self.client.force_authenticate(user=other_user)
+        response = self.client.get(f"/api/lessons/{self.lesson1.id}/")
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_lesson_update_owner(self) -> None:
+        """Тест обновления урока владельцем"""
+        self.client.force_authenticate(user=self.regular_user)
+
+        update_data = {
+            "title": "Updated Lesson 1",
+            "description": "Updated Description",
+            "course": self.course.id,
+            "order": 1,
+        }
+
+        response = self.client.put(f"/api/lessons/{self.lesson1.id}/", update_data)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # Проверяем обновление в базе
+        self.lesson1.refresh_from_db()
+        self.assertEqual(self.lesson1.title, "Updated Lesson 1")
+
+    def test_lesson_update_moderator(self) -> None:
+        """Тест обновления урока модератором"""
+        self.client.force_authenticate(user=self.moderator_user)
+
+        update_data = {
+            "title": "Moderator Updated",
+            "description": "Moderator Updated Description",
+            "course": self.course.id,
+            "order": 1,
+        }
+
+        response = self.client.put(f"/api/lessons/{self.lesson1.id}/", update_data)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        self.lesson1.refresh_from_db()
+        self.assertEqual(self.lesson1.title, "Moderator Updated")
+
+    def test_lesson_update_other_user_denied(self) -> None:
+        """Тест запрета обновления чужого урока"""
+        self.client.force_authenticate(user=self.other_user)
+
+        update_data = {
+            "title": "Unauthorized Update",
+            "description": "Should not work",
+            "course": self.course.id,
+            "order": 1,
+        }
+
+        response = self.client.put(f"/api/lessons/{self.lesson1.id}/", update_data)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_lesson_delete_owner(self) -> None:
+        """Тест удаления урока владельцем"""
+        self.client.force_authenticate(user=self.regular_user)
+
+        response = self.client.delete(f"/api/lessons/{self.lesson1.id}/")
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+
+        # Проверяем, что урок удален
+        with self.assertRaises(Lesson.DoesNotExist):
+            Lesson.objects.get(id=self.lesson1.id)
+
+    def test_lesson_delete_moderator_denied(self) -> None:
+        """Тест запрета удаления урока модератором"""
+        self.client.force_authenticate(user=self.moderator_user)
+
+        response = self.client.delete(f"/api/lessons/{self.lesson1.id}/")
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_lesson_delete_admin(self) -> None:
+        """Тест удаления урока администратором"""
+        self.client.force_authenticate(user=self.admin_user)
+
+        response = self.client.delete(f"/api/lessons/{self.lesson1.id}/")
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+
+
+class SubscriptionTestCase(APITestCase):
+    """
+    Тестирование функционала подписки на обновления курса.
+    """
+
+    def setUp(self) -> None:
+        """Заполнение базы данных тестовыми данными"""
+        self.user = User.objects.create_user(email="user@test.com", password="testpass123")
+
+        self.course = Course.objects.create(
+            title="Test Course for Subscription", description="Test Course Description", owner=self.user
+        )
+
+    def test_subscribe_to_course(self) -> None:
+        """Тест подписки на курс"""
+        self.client.force_authenticate(user=self.user)
+
+        response = self.client.post(f"/api/courses/{self.course.id}/subscribe/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["message"], "Подписка оформлена")
+
+        # Проверяем, что подписка создана в базе
+        subscription = Subscription.objects.get(user=self.user, course=self.course)
+        self.assertTrue(subscription.is_active)
+
+    def test_unsubscribe_from_course(self) -> None:
+        """Тест отписки от курса"""
+        # Сначала создаем подписку
+        Subscription.objects.create(user=self.user, course=self.course)
+
+        self.client.force_authenticate(user=self.user)
+        response = self.client.post(f"/api/courses/{self.course.id}/unsubscribe/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["message"], "Подписка отменена")
+
+        # Проверяем, что подписка удалена
+        with self.assertRaises(Subscription.DoesNotExist):
+            Subscription.objects.get(user=self.user, course=self.course)
+
+    def test_subscribe_twice(self) -> None:
+        """Тест повторной подписки (должна быть идемпотентной)"""
+        self.client.force_authenticate(user=self.user)
+
+        # Первая подписка
+        response1 = self.client.post(f"/api/courses/{self.course.id}/subscribe/")
+        self.assertEqual(response1.status_code, status.HTTP_200_OK)
+
+        # Вторая подписка
+        response2 = self.client.post(f"/api/courses/{self.course.id}/subscribe/")
+        self.assertEqual(response2.status_code, status.HTTP_200_OK)
+
+        # Должна быть только одна активная подписка
+        subscriptions_count = Subscription.objects.filter(user=self.user, course=self.course).count()
+        self.assertEqual(subscriptions_count, 1)
+
+    def test_subscribe_unauthorized(self) -> None:
+        """Тест подписки без авторизации"""
+        response = self.client.post(f"/api/courses/{self.course.id}/subscribe/")
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+
+class LessonSerializerTestCase(TestCase):
+    """
+    Тестирование сериализатора уроков.
+    """
+
+    def setUp(self) -> None:
+        self.user = User.objects.create_user(email="serializer@test.com", password="testpass123")
+
+        self.course = Course.objects.create(
+            title="Serializer Course", description="Serializer Course Description", owner=self.user
+        )
+
+        self.lesson_data = {
+            "title": "Serializer Lesson",
+            "description": "Serializer Lesson Description",
+            "course": self.course.id,
+            "order": 1,
+            "owner": self.user.id,
+        }
+
+    def test_lesson_serializer_valid_data(self) -> None:
+        """Тест валидных данных сериализатора"""
+        serializer = LessonSerializer(data=self.lesson_data)
+        self.assertTrue(serializer.is_valid())
+
+    def test_lesson_serializer_missing_title(self) -> None:
+        """Тест отсутствия обязательного поля title"""
+        invalid_data = self.lesson_data.copy()
+        invalid_data.pop("title")
+
+        serializer = LessonSerializer(data=invalid_data)
+        self.assertFalse(serializer.is_valid())
+        self.assertIn("title", serializer.errors)

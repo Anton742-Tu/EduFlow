@@ -10,6 +10,7 @@ from rest_framework.response import Response
 
 from .filters import PaymentsFilter
 from .models import Payments, Subscription, User
+from materials.paginators import StandardResultsSetPagination
 from .permissions import CanEditUserProfile, IsModeratorOrAdmin
 from .serializers import (
     PaymentsSerializer,
@@ -30,6 +31,7 @@ class UserViewSet(viewsets.ModelViewSet):
     """
 
     queryset = User.objects.all().prefetch_related("payments")
+    pagination_class = StandardResultsSetPagination
 
     def get_permissions(self) -> list:
         """
@@ -150,6 +152,7 @@ class PaymentsViewSet(viewsets.ModelViewSet):
     filterset_class = PaymentsFilter
     ordering_fields = ["payment_date", "amount"]
     ordering = ["-payment_date"]
+    pagination_class = StandardResultsSetPagination
 
     def get_permissions(self) -> list:
         """
