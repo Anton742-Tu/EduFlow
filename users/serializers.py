@@ -5,7 +5,7 @@ from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
 
-from .models import Payments, User
+from .models import Payments, Subscription, User  # Добавляем Subscription
 
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
@@ -35,6 +35,25 @@ class PaymentsSerializer(serializers.ModelSerializer):
         model = Payments
         fields = ["id", "user", "payment_date", "paid_course", "paid_lesson", "amount", "payment_method"]
         read_only_fields = ["id", "payment_date"]
+
+
+class SubscriptionSerializer(serializers.ModelSerializer):
+    """Сериализатор для подписок"""
+
+    class Meta:
+        model = Subscription
+        fields = ["id", "user", "course", "subscribed_at"]
+        read_only_fields = ["id", "user", "subscribed_at"]
+
+    def validate(self, attrs: Dict[str, Any]) -> Dict[str, Any]:
+        """Проверяем, что пользователь не подписан дважды на один курс"""
+        user = self.context["request"].user
+        course = attrs["course"]
+
+        if Subscription.objects.filter(user=user, course=course).exists():
+            raise serializers.ValidationError("Вы уже подписаны на этот курс")
+
+        return attrs
 
 
 class PublicUserProfileSerializer(serializers.ModelSerializer):

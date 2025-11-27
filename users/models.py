@@ -1,5 +1,6 @@
 from typing import List
 
+from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.utils.translation import gettext_lazy as _
@@ -84,3 +85,25 @@ class Payments(models.Model):
             raise ValidationError(_("Можно оплатить либо курс, либо урок, но не оба одновременно."))
         if not self.paid_course and not self.paid_lesson:
             raise ValidationError(_("Должен быть оплачен либо курс, либо урок."))
+
+
+class Subscription(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="user_subscriptions",
+        verbose_name="Пользователь",
+    )
+    course = models.ForeignKey(
+        "materials.Course", on_delete=models.CASCADE, related_name="course_subscriptions", verbose_name="Курс"
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата подписки")
+
+    class Meta:
+        verbose_name = "Подписка"
+        verbose_name_plural = "Подписки"
+        unique_together = ["user", "course"]
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return f"{self.user.email} подписан на {self.course.title}"
