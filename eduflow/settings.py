@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     "rest_framework.authtoken",  # Токен аутентификация
     "django_filters",  # Framework filters
     "rest_framework_simplejwt",  # JWT
+    "drf_spectacular",
     # Наши приложения
     "users.apps.UsersConfig",
     "materials.apps.MaterialsConfig",
@@ -157,6 +158,7 @@ REST_FRAMEWORK = {
         "rest_framework.parsers.FormParser",
         "rest_framework.parsers.MultiPartParser",
     ],
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
 
 # Настройки JWT
@@ -183,3 +185,24 @@ AUTH_USER_MODEL = "users.User"
 # Настройки для медиа-файлов (аватарки)
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
+
+SPECTACULAR_SETTINGS = {
+    "TITLE": "EduFlow API",
+    "DESCRIPTION": "API для образовательной платформы EduFlow",
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+    # Настройки для лучшего отображения
+    "SWAGGER_UI_DIST": "SIDECAR",
+    "SWAGGER_UI_FAVICON_HREF": "SIDECAR",
+    # Автоматическая генерация тегов
+    "TAGS": [
+        {"name": "users", "description": "Операции с пользователями и аутентификация"},
+        {"name": "courses", "description": "Управление курсами и подписками"},
+        {"name": "lessons", "description": "Управление уроками"},
+        {"name": "payments", "description": "Операции с платежами"},
+    ],
+    # Настройки безопасности
+    "SECURITY": [{"Bearer": {"type": "http", "scheme": "bearer", "bearerFormat": "JWT"}}],
+    # Сортировка эндпоинтов
+    "SCHEMA_PATH_PREFIX": "/api/",
+}

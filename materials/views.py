@@ -2,6 +2,7 @@ from typing import Optional
 
 from django.db.models import QuerySet
 from django.http import HttpRequest, HttpResponse
+from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema, extend_schema_view
 from rest_framework import status, viewsets
 from rest_framework.decorators import action, api_view
 from rest_framework.permissions import IsAuthenticated
@@ -25,12 +26,58 @@ def home(request: HttpRequest) -> HttpResponse:
     )
 
 
+@extend_schema(
+    summary="Тестовый эндпоинт API", description="Простой тестовый эндпоинт для проверки работы API.", tags=["utils"]
+)
 @api_view(["GET"])
 def test_api(request: Request) -> Response:
     """Простой тестовый API endpoint"""
     return Response({"message": "EduFlow API работает!", "status": "success", "version": "1.0"})
 
 
+@extend_schema_view(
+    list=extend_schema(
+        summary="Список курсов",
+        description="Получить список курсов. Пользователи видят только свои курсы, модераторы и администраторы - все.",
+        tags=["courses"],
+        parameters=[
+            OpenApiParameter(
+                name="page", type=OpenApiTypes.INT, location=OpenApiParameter.QUERY, description="Номер страницы"
+            ),
+            OpenApiParameter(
+                name="page_size",
+                type=OpenApiTypes.INT,
+                location=OpenApiParameter.QUERY,
+                description="Количество элементов на странице (макс. 100)",
+            ),
+        ],
+    ),
+    retrieve=extend_schema(
+        summary="Детали курса",
+        description="Получить детальную информацию о курсе. Доступно владельцу, модераторам и администраторам.",
+        tags=["courses"],
+    ),
+    create=extend_schema(
+        summary="Создание курса",
+        description="Создать новый курс. Доступно обычным пользователям (не модераторам).",
+        tags=["courses"],
+    ),
+    update=extend_schema(
+        summary="Обновление курса",
+        description="Обновить курс. Доступно владельцу, модераторам и администраторам.",
+        tags=["courses"],
+    ),
+    partial_update=extend_schema(
+        summary="Частичное обновление курса",
+        description="Частичное обновление курса. Доступно владельцу, модераторам и администраторам.",
+        tags=["courses"],
+    ),
+    destroy=extend_schema(
+        summary="Удаление курса",
+        description="Удалить курс. Доступно только владельцу или администраторам.",
+        tags=["courses"],
+    ),
+)
 class CourseViewSet(viewsets.ModelViewSet):
     """
     ViewSet для CRUD операций с курсами.
@@ -80,6 +127,22 @@ class CourseViewSet(viewsets.ModelViewSet):
         """
         serializer.save(owner=self.request.user)
 
+    @extend_schema(
+        summary="Подписаться на курс",
+        description="Подписаться на обновления курса. Получать уведомления о новых уроках.",
+        tags=["courses"],
+        responses={
+            200: {
+                "type": "object",
+                "properties": {
+                    "message": {"type": "string", "example": "Подписка оформлена"},
+                    "course": {"type": "string", "example": "Название курса"},
+                    "subscribed": {"type": "boolean", "example": True},
+                    "created": {"type": "boolean", "example": True},
+                },
+            }
+        },
+    )
     @action(detail=True, methods=["post"])
     def subscribe(self, request: Request, pk: Optional[str] = None) -> Response:
         """Эндпоинт для подписки на курс"""
@@ -94,6 +157,22 @@ class CourseViewSet(viewsets.ModelViewSet):
             status=status.HTTP_200_OK,
         )
 
+    @extend_schema(
+        summary="Отписаться от курса",
+        description="Отписаться от обновлений курса.",
+        tags=["courses"],
+        responses={
+            200: {
+                "type": "object",
+                "properties": {
+                    "message": {"type": "string", "example": "Подписка отменена"},
+                    "course": {"type": "string", "example": "Название курса"},
+                    "subscribed": {"type": "boolean", "example": False},
+                },
+            },
+            404: {"type": "object", "properties": {"message": {"type": "string", "example": "Подписка не найдена"}}},
+        },
+    )
     @action(detail=True, methods=["post"])
     def unsubscribe(self, request: Request, pk: Optional[str] = None) -> Response:
         """Эндпоинт для отписки от курса"""
@@ -111,6 +190,49 @@ class CourseViewSet(viewsets.ModelViewSet):
             return Response({"message": "Подписка не найдена"}, status=status.HTTP_404_NOT_FOUND)
 
 
+@extend_schema_view(
+    list=extend_schema(
+        summary="Список уроков",
+        description="Получить список уроков. Пользователи видят только свои уроки, модераторы и администраторы - все.",
+        tags=["lessons"],
+        parameters=[
+            OpenApiParameter(
+                name="page", type=OpenApiTypes.INT, location=OpenApiParameter.QUERY, description="Номер страницы"
+            ),
+            OpenApiParameter(
+                name="page_size",
+                type=OpenApiTypes.INT,
+                location=OpenApiParameter.QUERY,
+                description="Количество элементов на странице (макс. 100)",
+            ),
+        ],
+    ),
+    retrieve=extend_schema(
+        summary="Детали урока",
+        description="Получить детальную информацию об уроке. Доступно владельцу, модераторам и администраторам.",
+        tags=["lessons"],
+    ),
+    create=extend_schema(
+        summary="Создание урока",
+        description="Создать новый урок. Доступно обычным пользователям (не модераторам). Автоматическая валидация YouTube ссылок.",
+        tags=["lessons"],
+    ),
+    update=extend_schema(
+        summary="Обновление урока",
+        description="Обновить урок. Доступно владельцу, модераторам и администраторам.",
+        tags=["lessons"],
+    ),
+    partial_update=extend_schema(
+        summary="Частичное обновление урока",
+        description="Частичное обновление урока. Доступно владельцу, модераторам и администраторам.",
+        tags=["lessons"],
+    ),
+    destroy=extend_schema(
+        summary="Удаление урока",
+        description="Удалить урок. Доступно только владельцу или администраторам.",
+        tags=["lessons"],
+    ),
+)
 class LessonViewSet(viewsets.ModelViewSet):
     """
     ViewSet для CRUD операций с уроками.
