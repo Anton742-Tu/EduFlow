@@ -293,38 +293,30 @@ class PaymentsViewSet(viewsets.ModelViewSet):
     list=extend_schema(
         summary="Список подписок",
         description="Получить список подписок текущего пользователя.",
-        tags=['subscriptions']
+        tags=["subscriptions"],
     ),
     retrieve=extend_schema(
         summary="Детали подписки",
         description="Получить детальную информацию о подписке. Только для владельца подписки.",
-        tags=['subscriptions'],
+        tags=["subscriptions"],
         parameters=[
             OpenApiParameter(
-                name='id',
-                type=OpenApiTypes.INT,
-                location=OpenApiParameter.PATH,
-                description='ID подписки'
+                name="id", type=OpenApiTypes.INT, location=OpenApiParameter.PATH, description="ID подписки"
             )
-        ]
+        ],
     ),
     create=extend_schema(
-        summary="Создание подписки",
-        description="Создать новую подписку на курс.",
-        tags=['subscriptions']
+        summary="Создание подписки", description="Создать новую подписку на курс.", tags=["subscriptions"]
     ),
     destroy=extend_schema(
         summary="Удаление подписки",
         description="Удалить подписку на курс. Только для владельца подписки.",
-        tags=['subscriptions'],
+        tags=["subscriptions"],
         parameters=[
             OpenApiParameter(
-                name='id',
-                type=OpenApiTypes.INT,
-                location=OpenApiParameter.PATH,
-                description='ID подписки'
+                name="id", type=OpenApiTypes.INT, location=OpenApiParameter.PATH, description="ID подписки"
             )
-        ]
+        ],
     ),
 )
 class SubscriptionViewSet(viewsets.ModelViewSet):
@@ -339,7 +331,7 @@ class SubscriptionViewSet(viewsets.ModelViewSet):
     def get_queryset(self) -> QuerySet[Subscription]:
         """Пользователь видит только свои подписки"""
         # Фикс для drf-spectacular
-        if getattr(self, 'swagger_fake_view', False):
+        if getattr(self, "swagger_fake_view", False):
             return Subscription.objects.none()
 
         return Subscription.objects.filter(user=self.request.user)

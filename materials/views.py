@@ -2,13 +2,13 @@ from typing import Optional
 
 from django.db.models import QuerySet
 from django.http import HttpRequest, HttpResponse
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema, extend_schema_view
 from rest_framework import status, viewsets
 from rest_framework.decorators import action, api_view
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
-from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter, OpenApiTypes
-from drf_spectacular.types import OpenApiTypes
 
 from users.models import Subscription
 from users.permissions import CanCreateContent, CanDeleteContent, IsOwnerOrModerator
@@ -30,17 +30,17 @@ def home(request: HttpRequest) -> HttpResponse:
 @extend_schema(
     summary="Тестовый эндпоинт API",
     description="Простой тестовый эндпоинт для проверки работы API.",
-    tags=['utils'],
+    tags=["utils"],
     responses={
         200: {
-            'type': 'object',
-            'properties': {
-                'message': {'type': 'string', 'example': 'EduFlow API работает!'},
-                'status': {'type': 'string', 'example': 'success'},
-                'version': {'type': 'string', 'example': '1.0'}
-            }
+            "type": "object",
+            "properties": {
+                "message": {"type": "string", "example": "EduFlow API работает!"},
+                "status": {"type": "string", "example": "success"},
+                "version": {"type": "string", "example": "1.0"},
+            },
         }
-    }
+    },
 )
 @api_view(["GET"])
 def test_api(request: Request) -> Response:
@@ -52,78 +52,55 @@ def test_api(request: Request) -> Response:
     list=extend_schema(
         summary="Список курсов",
         description="Получить список курсов. Пользователи видят только свои курсы, модераторы и администраторы - все.",
-        tags=['courses'],
+        tags=["courses"],
         parameters=[
             OpenApiParameter(
-                name='page',
-                type=OpenApiTypes.INT,
-                location=OpenApiParameter.QUERY,
-                description='Номер страницы'
+                name="page", type=OpenApiTypes.INT, location=OpenApiParameter.QUERY, description="Номер страницы"
             ),
             OpenApiParameter(
-                name='page_size',
+                name="page_size",
                 type=OpenApiTypes.INT,
                 location=OpenApiParameter.QUERY,
-                description='Количество элементов на странице (макс. 100)'
+                description="Количество элементов на странице (макс. 100)",
             ),
-        ]
+        ],
     ),
     retrieve=extend_schema(
         summary="Детали курса",
         description="Получить детальную информацию о курсе. Доступно владельцу, модераторам и администраторам.",
-        tags=['courses'],
+        tags=["courses"],
         parameters=[
-            OpenApiParameter(
-                name='id',
-                type=OpenApiTypes.INT,
-                location=OpenApiParameter.PATH,
-                description='ID курса'
-            )
-        ]
+            OpenApiParameter(name="id", type=OpenApiTypes.INT, location=OpenApiParameter.PATH, description="ID курса")
+        ],
     ),
     create=extend_schema(
         summary="Создание курса",
         description="Создать новый курс. Доступно обычным пользователям (не модераторам).",
-        tags=['courses']
+        tags=["courses"],
     ),
     update=extend_schema(
         summary="Обновление курса",
         description="Обновить курс. Доступно владельцу, модераторам и администраторам.",
-        tags=['courses'],
+        tags=["courses"],
         parameters=[
-            OpenApiParameter(
-                name='id',
-                type=OpenApiTypes.INT,
-                location=OpenApiParameter.PATH,
-                description='ID курса'
-            )
-        ]
+            OpenApiParameter(name="id", type=OpenApiTypes.INT, location=OpenApiParameter.PATH, description="ID курса")
+        ],
     ),
     partial_update=extend_schema(
         summary="Частичное обновление курса",
         description="Частичное обновление курса. Доступно владельцу, модераторам и администраторам.",
-        tags=['courses'],
+        tags=["courses"],
         parameters=[
-            OpenApiParameter(
-                name='id',
-                type=OpenApiTypes.INT,
-                location=OpenApiParameter.PATH,
-                description='ID курса'
-            )
-        ]
+            OpenApiParameter(name="id", type=OpenApiTypes.INT, location=OpenApiParameter.PATH, description="ID курса")
+        ],
     ),
     destroy=extend_schema(
         summary="Удаление курса",
         description="Удалить курс. Доступно только владельцу или администраторам.",
-        tags=['courses'],
+        tags=["courses"],
         parameters=[
-            OpenApiParameter(
-                name='id',
-                type=OpenApiTypes.INT,
-                location=OpenApiParameter.PATH,
-                description='ID курса'
-            )
-        ]
+            OpenApiParameter(name="id", type=OpenApiTypes.INT, location=OpenApiParameter.PATH, description="ID курса")
+        ],
     ),
 )
 class CourseViewSet(viewsets.ModelViewSet):
@@ -162,7 +139,7 @@ class CourseViewSet(viewsets.ModelViewSet):
         Модераторы и админы видят все курсы.
         """
         # Фикс для drf-spectacular
-        if getattr(self, 'swagger_fake_view', False):
+        if getattr(self, "swagger_fake_view", False):
             return Course.objects.none()
 
         user = self.request.user
@@ -183,26 +160,21 @@ class CourseViewSet(viewsets.ModelViewSet):
     @extend_schema(
         summary="Подписаться на курс",
         description="Подписаться на обновления курса. Получать уведомления о новых уроках.",
-        tags=['courses'],
+        tags=["courses"],
         parameters=[
-            OpenApiParameter(
-                name='id',
-                type=OpenApiTypes.INT,
-                location=OpenApiParameter.PATH,
-                description='ID курса'
-            )
+            OpenApiParameter(name="id", type=OpenApiTypes.INT, location=OpenApiParameter.PATH, description="ID курса")
         ],
         responses={
             200: {
-                'type': 'object',
-                'properties': {
-                    'message': {'type': 'string', 'example': 'Подписка оформлена'},
-                    'course': {'type': 'string', 'example': 'Название курса'},
-                    'subscribed': {'type': 'boolean', 'example': True},
-                    'created': {'type': 'boolean', 'example': True}
-                }
+                "type": "object",
+                "properties": {
+                    "message": {"type": "string", "example": "Подписка оформлена"},
+                    "course": {"type": "string", "example": "Название курса"},
+                    "subscribed": {"type": "boolean", "example": True},
+                    "created": {"type": "boolean", "example": True},
+                },
             }
-        }
+        },
     )
     @action(detail=True, methods=["post"])
     def subscribe(self, request: Request, pk: Optional[str] = None) -> Response:
@@ -221,31 +193,21 @@ class CourseViewSet(viewsets.ModelViewSet):
     @extend_schema(
         summary="Отписаться от курса",
         description="Отписаться от обновлений курса.",
-        tags=['courses'],
+        tags=["courses"],
         parameters=[
-            OpenApiParameter(
-                name='id',
-                type=OpenApiTypes.INT,
-                location=OpenApiParameter.PATH,
-                description='ID курса'
-            )
+            OpenApiParameter(name="id", type=OpenApiTypes.INT, location=OpenApiParameter.PATH, description="ID курса")
         ],
         responses={
             200: {
-                'type': 'object',
-                'properties': {
-                    'message': {'type': 'string', 'example': 'Подписка отменена'},
-                    'course': {'type': 'string', 'example': 'Название курса'},
-                    'subscribed': {'type': 'boolean', 'example': False}
-                }
+                "type": "object",
+                "properties": {
+                    "message": {"type": "string", "example": "Подписка отменена"},
+                    "course": {"type": "string", "example": "Название курса"},
+                    "subscribed": {"type": "boolean", "example": False},
+                },
             },
-            404: {
-                'type': 'object',
-                'properties': {
-                    'message': {'type': 'string', 'example': 'Подписка не найдена'}
-                }
-            }
-        }
+            404: {"type": "object", "properties": {"message": {"type": "string", "example": "Подписка не найдена"}}},
+        },
     )
     @action(detail=True, methods=["post"])
     def unsubscribe(self, request: Request, pk: Optional[str] = None) -> Response:
@@ -268,78 +230,55 @@ class CourseViewSet(viewsets.ModelViewSet):
     list=extend_schema(
         summary="Список уроков",
         description="Получить список уроков. Пользователи видят только свои уроки, модераторы и администраторы - все.",
-        tags=['lessons'],
+        tags=["lessons"],
         parameters=[
             OpenApiParameter(
-                name='page',
-                type=OpenApiTypes.INT,
-                location=OpenApiParameter.QUERY,
-                description='Номер страницы'
+                name="page", type=OpenApiTypes.INT, location=OpenApiParameter.QUERY, description="Номер страницы"
             ),
             OpenApiParameter(
-                name='page_size',
+                name="page_size",
                 type=OpenApiTypes.INT,
                 location=OpenApiParameter.QUERY,
-                description='Количество элементов на странице (макс. 100)'
+                description="Количество элементов на странице (макс. 100)",
             ),
-        ]
+        ],
     ),
     retrieve=extend_schema(
         summary="Детали урока",
         description="Получить детальную информацию об уроке. Доступно владельцу, модераторам и администраторам.",
-        tags=['lessons'],
+        tags=["lessons"],
         parameters=[
-            OpenApiParameter(
-                name='id',
-                type=OpenApiTypes.INT,
-                location=OpenApiParameter.PATH,
-                description='ID урока'
-            )
-        ]
+            OpenApiParameter(name="id", type=OpenApiTypes.INT, location=OpenApiParameter.PATH, description="ID урока")
+        ],
     ),
     create=extend_schema(
         summary="Создание урока",
         description="Создать новый урок. Доступно обычным пользователям (не модераторам). Автоматическая валидация YouTube ссылок.",
-        tags=['lessons']
+        tags=["lessons"],
     ),
     update=extend_schema(
         summary="Обновление урока",
         description="Обновить урок. Доступно владельцу, модераторам и администраторам.",
-        tags=['lessons'],
+        tags=["lessons"],
         parameters=[
-            OpenApiParameter(
-                name='id',
-                type=OpenApiTypes.INT,
-                location=OpenApiParameter.PATH,
-                description='ID урока'
-            )
-        ]
+            OpenApiParameter(name="id", type=OpenApiTypes.INT, location=OpenApiParameter.PATH, description="ID урока")
+        ],
     ),
     partial_update=extend_schema(
         summary="Частичное обновление урока",
         description="Частичное обновление урока. Доступно владельцу, модераторам и администраторам.",
-        tags=['lessons'],
+        tags=["lessons"],
         parameters=[
-            OpenApiParameter(
-                name='id',
-                type=OpenApiTypes.INT,
-                location=OpenApiParameter.PATH,
-                description='ID урока'
-            )
-        ]
+            OpenApiParameter(name="id", type=OpenApiTypes.INT, location=OpenApiParameter.PATH, description="ID урока")
+        ],
     ),
     destroy=extend_schema(
         summary="Удаление урока",
         description="Удалить урок. Доступно только владельцу или администраторам.",
-        tags=['lessons'],
+        tags=["lessons"],
         parameters=[
-            OpenApiParameter(
-                name='id',
-                type=OpenApiTypes.INT,
-                location=OpenApiParameter.PATH,
-                description='ID урока'
-            )
-        ]
+            OpenApiParameter(name="id", type=OpenApiTypes.INT, location=OpenApiParameter.PATH, description="ID урока")
+        ],
     ),
 )
 class LessonViewSet(viewsets.ModelViewSet):
@@ -379,7 +318,7 @@ class LessonViewSet(viewsets.ModelViewSet):
         Переопределяем базовый queryset для фильтрации по владельцу.
         """
         # Фикс для drf-spectacular
-        if getattr(self, 'swagger_fake_view', False):
+        if getattr(self, "swagger_fake_view", False):
             return Lesson.objects.none()
 
         user = self.request.user

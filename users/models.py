@@ -103,7 +103,6 @@ class Subscription(models.Model):
         verbose_name = "Подписка"
         verbose_name_plural = "Подписки"
         unique_together = ["user", "course"]
-        ordering = ["-created_at"]
 
     def __str__(self) -> str:
         return f"{self.user.email} подписан на {self.course.title}"

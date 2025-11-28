@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     "django_filters",  # Framework filters
     "rest_framework_simplejwt",  # JWT
     "drf_spectacular",
+    "drf_spectacular_sidecar",
     # Наши приложения
     "users.apps.UsersConfig",
     "materials.apps.MaterialsConfig",
@@ -190,19 +191,18 @@ SPECTACULAR_SETTINGS = {
     "TITLE": "EduFlow API",
     "DESCRIPTION": "API для образовательной платформы EduFlow",
     "VERSION": "1.0.0",
-    "SERVE_INCLUDE_SCHEMA": False,
-    # Настройки для лучшего отображения
-    "SWAGGER_UI_DIST": "SIDECAR",
-    "SWAGGER_UI_FAVICON_HREF": "SIDECAR",
-    # Автоматическая генерация тегов
+    "SERVE_INCLUDE_SCHEMA": True,
+    # Убираем sidecar для упрощения
+    # 'SWAGGER_UI_DIST': 'SIDECAR',
+    # 'SWAGGER_UI_FAVICON_HREF': 'SIDECAR',
+    # Простые теги
     "TAGS": [
-        {"name": "users", "description": "Операции с пользователями и аутентификация"},
-        {"name": "courses", "description": "Управление курсами и подписками"},
-        {"name": "lessons", "description": "Управление уроками"},
-        {"name": "payments", "description": "Операции с платежами"},
+        {"name": "users", "description": "Пользователи"},
+        {"name": "courses", "description": "Курсы"},
+        {"name": "lessons", "description": "Уроки"},
+        {"name": "payments", "description": "Платежи"},
+        {"name": "subscriptions", "description": "Подписки"},
     ],
     # Настройки безопасности
     "SECURITY": [{"Bearer": {"type": "http", "scheme": "bearer", "bearerFormat": "JWT"}}],
-    # Сортировка эндпоинтов
-    "SCHEMA_PATH_PREFIX": "/api/",
 }

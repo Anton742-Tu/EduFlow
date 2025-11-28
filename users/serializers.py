@@ -38,12 +38,13 @@ class PaymentsSerializer(serializers.ModelSerializer):
 
 
 class SubscriptionSerializer(serializers.ModelSerializer):
-    """Сериализатор для подписок"""
+    course_title = serializers.CharField(source="course.title", read_only=True)
+    subscribed_at = serializers.DateTimeField(source="created_at", read_only=True)
 
     class Meta:
         model = Subscription
-        fields = ["id", "user", "course", "subscribed_at"]
-        read_only_fields = ["id", "user", "subscribed_at"]
+        fields = ["id", "user", "course", "course_title", "subscribed_at"]
+        read_only_fields = ["id", "user", "course_title", "subscribed_at"]
 
     def validate(self, attrs: Dict[str, Any]) -> Dict[str, Any]:
         """Проверяем, что пользователь не подписан дважды на один курс"""
@@ -120,5 +121,5 @@ class UserCreateSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data: Dict[str, Any]) -> User:
         validated_data.pop("password_confirm")
-        user: User = User.objects.create_user(**validated_data)
+        user = User.objects.create_user(**validated_data)
         return user
