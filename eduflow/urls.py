@@ -12,9 +12,10 @@ urlpatterns = [
     path("api/", include("users.api_urls")),
     path("api/auth/", include("users.jwt_urls")),  # JWT URLs
     path("api-auth/", include("rest_framework.urls")),  # Логин для API
+    # Документация API
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
+    path("api/docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="swagger-ui"),
     path("api/redoc/", SpectacularRedocView.as_view(url_name="schema"), name="redoc"),
-    # Редирект с docs на redoc (раз Swagger не работает)
-    path("api/docs/", RedirectView.as_view(url="/api/redoc/", permanent=False)),
-    path("", RedirectView.as_view(url="/api/redoc/", permanent=False)),
+    # Редирект с корня на документацию
+    path("", RedirectView.as_view(url="/api/docs/", permanent=False)),
 ]

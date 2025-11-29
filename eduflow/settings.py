@@ -15,6 +15,11 @@ from datetime import timedelta
 from pathlib import Path
 from typing import List
 
+from dotenv import load_dotenv
+
+load_dotenv()  # загружаем переменные из .env
+
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -30,6 +35,13 @@ DEBUG: bool = True
 
 ALLOWED_HOSTS: List[str] = []
 
+# Stripe настройки
+STRIPE_PUBLISHABLE_KEY = os.getenv("STRIPE_PUBLISHABLE_KEY", "")
+STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY", "")
+STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "")
+
+# Настройки для фронтенда
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
 
 # Application definition
 

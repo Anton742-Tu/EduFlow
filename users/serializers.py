@@ -33,7 +33,18 @@ class PaymentsSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Payments
-        fields = ["id", "user", "payment_date", "paid_course", "paid_lesson", "amount", "payment_method"]
+        fields = [
+            "id",
+            "user",
+            "payment_date",
+            "paid_course",
+            "paid_lesson",
+            "amount",
+            "payment_method",
+            "payment_status",
+            "stripe_payment_intent_id",
+            "stripe_session_id",
+        ]
         read_only_fields = ["id", "payment_date"]
 
 
@@ -123,3 +134,29 @@ class UserCreateSerializer(serializers.ModelSerializer):
         validated_data.pop("password_confirm")
         user = User.objects.create_user(**validated_data)
         return user
+
+
+class CoursePaymentSerializer(serializers.Serializer):
+    """
+    Сериализатор для создания платежа за курс
+    """
+
+    course_id = serializers.IntegerField()
+
+    def validate_course_id(self, value: int) -> int:
+        try:
+            course = Course.objects.get(id=value)
+            if not hasattr(course, "price") or not course.price:
+                raise serializers.ValidationError("Курс не имеет установленной цены")
+            return value
+        except Course.DoesNotExist:
+            raise serializers.ValidationError("Курс не найден")
+
+
+class PaymentSessionSerializer(serializers.Serializer):
+    """
+    Сериализатор ответа с сессией оплаты
+    """
+
+    session_id = serializers.CharField()
+    url = serializers.URLField()

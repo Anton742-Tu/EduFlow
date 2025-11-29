@@ -9,12 +9,15 @@ from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
 
+from materials.models import Course
 from materials.paginators import StandardResultsSetPagination
 
 from .filters import PaymentsFilter
 from .models import Payments, Subscription, User
 from .permissions import CanEditUserProfile, IsModeratorOrAdmin
 from .serializers import (
+    CoursePaymentSerializer,
+    PaymentSessionSerializer,
     PaymentsSerializer,
     PrivateUserProfileSerializer,
     PublicUserProfileSerializer,
@@ -22,6 +25,7 @@ from .serializers import (
     UserCreateSerializer,
     UserUpdateSerializer,
 )
+from .services.stripe_service import StripeService
 
 
 @extend_schema_view(
@@ -287,6 +291,50 @@ class PaymentsViewSet(viewsets.ModelViewSet):
 
     def destroy(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         return super().destroy(request, *args, **kwargs)
+
+    @extend_schema(
+        summary="Создать сессию оплаты курса",
+        description="Создает сессию оплаты для курса через Stripe",
+        tags=["payments"],
+        request=CoursePaymentSerializer,
+        responses={200: PaymentSessionSerializer},
+    )
+    @action(detail=False, methods=["post"])
+    def create_course_payment(self, request: Request) -> Response:
+        """
+        Создание сессии оплаты для курса
+        """
+        serializer = CoursePaymentSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        course_id = serializer.validated_data["course_id"]
+        user = request.user
+
+        try:
+            course = Course.objects.get(id=course_id)
+
+            # Создаем запись о платеже
+            payment = Payments.objects.create(
+                user=user,
+                amount=course.price if hasattr(course, "price") else 1000,
+                payment_method="stripe",
+                payment_status="pending",
+                paid_course=course,
+            )
+
+            # Создаем сессию оплаты в Stripe
+            session_data = StripeService.create_course_payment_session(course, user.id)
+
+            # Сохраняем ID сессии в платеж
+            payment.stripe_session_id = session_data["session_id"]
+            payment.save()
+
+            return Response(PaymentSessionSerializer(session_data).data)
+
+        except Course.DoesNotExist:
+            return Response({"error": "Курс не найден"}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 @extend_schema_view(
