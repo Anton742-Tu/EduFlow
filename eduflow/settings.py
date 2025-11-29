@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
+import os
 from datetime import timedelta
 from pathlib import Path
 from typing import List
@@ -126,7 +127,7 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
-STATIC_URL = "static/"
+STATIC_URL = "/static/"
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
@@ -187,22 +188,10 @@ AUTH_USER_MODEL = "users.User"
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
+# SPECTACULAR настройки (упрощенные)
 SPECTACULAR_SETTINGS = {
     "TITLE": "EduFlow API",
     "DESCRIPTION": "API для образовательной платформы EduFlow",
     "VERSION": "1.0.0",
-    "SERVE_INCLUDE_SCHEMA": True,
-    # Убираем sidecar для упрощения
-    # 'SWAGGER_UI_DIST': 'SIDECAR',
-    # 'SWAGGER_UI_FAVICON_HREF': 'SIDECAR',
-    # Простые теги
-    "TAGS": [
-        {"name": "users", "description": "Пользователи"},
-        {"name": "courses", "description": "Курсы"},
-        {"name": "lessons", "description": "Уроки"},
-        {"name": "payments", "description": "Платежи"},
-        {"name": "subscriptions", "description": "Подписки"},
-    ],
-    # Настройки безопасности
-    "SECURITY": [{"Bearer": {"type": "http", "scheme": "bearer", "bearerFormat": "JWT"}}],
+    "SERVE_INCLUDE_SCHEMA": False,
 }
