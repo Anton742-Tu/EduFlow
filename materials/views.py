@@ -3,7 +3,7 @@ from typing import Optional
 from django.db.models import QuerySet
 from django.http import HttpRequest, HttpResponse
 from drf_spectacular.types import OpenApiTypes
-from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema, extend_schema_view
+from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
 from rest_framework import status, viewsets
 from rest_framework.decorators import action, api_view
 from rest_framework.permissions import IsAuthenticated
@@ -253,7 +253,7 @@ class CourseViewSet(viewsets.ModelViewSet):
     ),
     create=extend_schema(
         summary="Создание урока",
-        description="Создать новый урок. Доступно обычным пользователям (не модераторам). Автоматическая валидация YouTube ссылок.",
+        description="Создать новый урок. Доступно обычным пользователям. Автоматическая валидация YouTube ссылок.",
         tags=["lessons"],
     ),
     update=extend_schema(

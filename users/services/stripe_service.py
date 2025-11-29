@@ -3,7 +3,7 @@ from typing import Any, Dict, Optional
 import stripe
 from django.conf import settings
 
-from materials.models import Course, Lesson
+from materials.models import Course
 
 stripe.api_key = settings.STRIPE_SECRET_KEY
 
