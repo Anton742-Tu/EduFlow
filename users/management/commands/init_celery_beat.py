@@ -1,27 +1,16 @@
-import json
-
 from django.core.management.base import BaseCommand
-from django_celery_beat.models import IntervalSchedule, PeriodicTask
+from django_celery_beat.models import PeriodicTask, IntervalSchedule
+import json
 
 
 class Command(BaseCommand):
-    help = "Setup periodic tasks for Celery Beat"
+    help = 'Setup periodic tasks for Celery Beat'
 
     def handle(self, *args, **options):
         # Создание интервалов
-        every_5_minutes, _ = IntervalSchedule.objects.get_or_create(
-            every=5,
+        every_10_minutes, _ = IntervalSchedule.objects.get_or_create(
+            every=10,
             period=IntervalSchedule.MINUTES,
-        )
-
-        # Тестовая задача для проверки email
-        PeriodicTask.objects.get_or_create(
-            interval=every_5_minutes,
-            name="Test email sending",
-            task="users.tasks.send_welcome_email",
-            kwargs=json.dumps({"user_id": 1}),  # Заменить на реальный ID пользователя
-            enabled=False,  # Отключена по умолчанию
-            defaults={"description": "Тестовая задача отправки email"},
         )
 
         every_hour, _ = IntervalSchedule.objects.get_or_create(
@@ -34,20 +23,38 @@ class Command(BaseCommand):
             period=IntervalSchedule.DAYS,
         )
 
+        every_week, _ = IntervalSchedule.objects.get_or_create(
+            every=1,
+            period=IntervalSchedule.DAYS,
+        )
+
         # Задача: проверка статуса платежей каждый час
         PeriodicTask.objects.get_or_create(
             interval=every_hour,
-            name="Check payment status",
-            task="users.tasks.check_payment_status",
-            defaults={"description": "Проверка статуса pending платежей"},
+            name='Check payment status hourly',
+            task='users.tasks.check_payment_status',
+            defaults={'description': 'Проверка статуса pending платежей каждый час'}
         )
 
         # Задача: очистка старых данных каждый день
         PeriodicTask.objects.get_or_create(
             interval=every_day,
-            name="Cleanup old data",
-            task="users.tasks.cleanup_old_data",
-            defaults={"description": "Очистка старых данных"},
+            name='Cleanup old data daily',
+            task='users.tasks.cleanup_old_data',
+            defaults={'description': 'Очистка старых данных каждый день'}
         )
 
-        self.stdout.write(self.style.SUCCESS("Successfully setup periodic tasks"))
+        # НОВАЯ ЗАДАЧА: деактивация неактивных пользователей каждую неделю
+        PeriodicTask.objects.get_or_create(
+            interval=every_week,
+            name='Deactivate inactive users weekly',
+            task='users.tasks.deactivate_inactive_users',
+            defaults={
+                'description': 'Деактивация пользователей, не заходивших более 30 дней (еженедельно)',
+                'enabled': True
+            }
+        )
+
+        self.stdout.write(
+            self.style.SUCCESS('Successfully setup periodic tasks')
+        )

@@ -155,3 +155,77 @@ def cleanup_old_data():
     except Exception as e:
         logger.error(f"Ошибка очистки данных: {e}")
         return f"Ошибка: {e}"
+
+
+@shared_task
+def deactivate_inactive_users():
+    """
+    Фоновая задача для деактивации пользователей, не заходивших более месяца
+    """
+    try:
+        from datetime import datetime, timedelta
+        from django.utils import timezone
+
+        # Дата месяц назад
+        month_ago = timezone.now() - timedelta(days=30)
+
+        # Находим пользователей, которые не заходили более месяца и еще активны
+        inactive_users = User.objects.filter(
+            last_login__lt=month_ago,
+            is_active=True
+        ).exclude(
+            is_staff=True  # Не блокируем staff пользователей
+        ).exclude(
+            is_superuser=True  # Не блокируем суперпользователей
+        )
+
+        user_count = inactive_users.count()
+
+        if user_count == 0:
+            logger.info("Нет неактивных пользователей для деактивации")
+            return "Нет неактивных пользователей для деактивации"
+
+        # Деактивируем пользователей
+        deactivated_count = inactive_users.update(is_active=False)
+
+        # Логируем деактивированных пользователей
+        deactivated_emails = list(inactive_users.values_list('email', flat=True))
+
+        logger.info(f"Деактивировано {deactivated_count} неактивных пользователей: {deactivated_emails}")
+
+        # Отправляем уведомление администратору (опционально)
+        send_admin_notification.delay(
+            subject="Отчет о деактивации неактивных пользователей",
+            message=f"Было деактивировано {deactivated_count} пользователей, не заходивших более месяца."
+        )
+
+        return f"Деактивировано {deactivated_count} неактивных пользователей"
+
+    except Exception as e:
+        logger.error(f"Ошибка при деактивации неактивных пользователей: {e}")
+        return f"Ошибка: {e}"
+
+
+@shared_task
+def send_admin_notification(subject, message):
+    """
+    Отправка уведомления администратору
+    """
+    try:
+        # Получаем email администратора из настроек или используем первый staff email
+        admin_email = User.objects.filter(is_staff=True).first().email
+
+        if admin_email:
+            send_mail(
+                subject=subject,
+                message=message,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[admin_email],
+                fail_silently=False,
+            )
+            logger.info(f"Уведомление администратору отправлено: {subject}")
+        else:
+            logger.warning("Не найден email администратора для отправки уведомления")
+
+    except Exception as e:
+        logger.error(f"Ошибка отправки уведомления администратору: {e}")
