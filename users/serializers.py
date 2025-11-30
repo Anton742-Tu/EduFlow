@@ -138,12 +138,12 @@ class UserCreateSerializer(serializers.ModelSerializer):
 
         # Создаем пользователя без пароля
         user = User.objects.create(
-            email=validated_data['email'],
-            first_name=validated_data.get('first_name', ''),
-            last_name=validated_data.get('last_name', ''),
-            phone=validated_data.get('phone', ''),
-            city=validated_data.get('city', ''),
-            avatar=validated_data.get('avatar')
+            email=validated_data["email"],
+            first_name=validated_data.get("first_name", ""),
+            last_name=validated_data.get("last_name", ""),
+            phone=validated_data.get("phone", ""),
+            city=validated_data.get("city", ""),
+            avatar=validated_data.get("avatar"),
         )
 
         # Устанавливаем пароль отдельно
