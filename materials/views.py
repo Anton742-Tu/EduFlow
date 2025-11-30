@@ -14,7 +14,6 @@ from users.models import Subscription
 from users.permissions import CanCreateContent, CanDeleteContent, IsOwnerOrModerator
 
 from .models import Course, Lesson
-from .paginators import StandardResultsSetPagination
 from .serializers import CourseSerializer, LessonSerializer
 
 
@@ -111,7 +110,6 @@ class CourseViewSet(viewsets.ModelViewSet):
     """
 
     serializer_class = CourseSerializer
-    pagination_class = StandardResultsSetPagination
     queryset = Course.objects.none()  # Фикс для drf-spectacular
 
     def get_permissions(self) -> list:
@@ -289,7 +287,6 @@ class LessonViewSet(viewsets.ModelViewSet):
     """
 
     serializer_class = LessonSerializer
-    pagination_class = StandardResultsSetPagination
     queryset = Lesson.objects.all()  # Уже установлен
 
     def get_permissions(self) -> list:

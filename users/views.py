@@ -10,7 +10,6 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 
 from materials.models import Course
-from materials.paginators import StandardResultsSetPagination
 
 from .filters import PaymentsFilter
 from .models import Payments, Subscription, User
@@ -70,7 +69,6 @@ class UserViewSet(viewsets.ModelViewSet):
     """
 
     queryset = User.objects.all().prefetch_related("payments")
-    pagination_class = StandardResultsSetPagination
 
     def get_permissions(self) -> list:
         """
@@ -244,7 +242,6 @@ class PaymentsViewSet(viewsets.ModelViewSet):
     filterset_class = PaymentsFilter
     ordering_fields = ["payment_date", "amount"]
     ordering = ["-payment_date"]
-    pagination_class = StandardResultsSetPagination
 
     def get_permissions(self) -> list:
         """
