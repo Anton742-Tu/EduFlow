@@ -9,9 +9,19 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         # Создание интервалов
-        every_10_minutes, _ = IntervalSchedule.objects.get_or_create(
-            every=10,
+        every_5_minutes, _ = IntervalSchedule.objects.get_or_create(
+            every=5,
             period=IntervalSchedule.MINUTES,
+        )
+
+        # Тестовая задача для проверки email
+        PeriodicTask.objects.get_or_create(
+            interval=every_5_minutes,
+            name="Test email sending",
+            task="users.tasks.send_welcome_email",
+            kwargs=json.dumps({"user_id": 1}),  # Заменить на реальный ID пользователя
+            enabled=False,  # Отключена по умолчанию
+            defaults={"description": "Тестовая задача отправки email"},
         )
 
         every_hour, _ = IntervalSchedule.objects.get_or_create(

@@ -12,6 +12,7 @@ from rest_framework.response import Response
 
 from users.models import Subscription
 from users.permissions import CanCreateContent, CanDeleteContent, IsOwnerOrModerator
+from users.tasks import send_course_update_notification
 
 from .models import Course, Lesson
 from .serializers import CourseSerializer, LessonSerializer
@@ -325,8 +326,14 @@ class LessonViewSet(viewsets.ModelViewSet):
         else:
             return Lesson.objects.filter(owner=user).select_related("course", "owner")
 
-    def perform_create(self, serializer: LessonSerializer) -> None:
+    def perform_create(self, serializer):
         """
         При создании урока автоматически устанавливаем владельца
+        и отправляем уведомления подписчикам
         """
-        serializer.save(owner=self.request.user)
+        lesson = serializer.save(owner=self.request.user)
+
+        # Асинхронная отправка уведомлений подписчикам
+        send_course_update_notification.delay(
+            course_id=lesson.course.id, lesson_title=lesson.title, lesson_description=lesson.description
+        )

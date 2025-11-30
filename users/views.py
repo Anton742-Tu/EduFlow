@@ -25,6 +25,7 @@ from .serializers import (
     UserUpdateSerializer,
 )
 from .services.stripe_service import StripeService
+from .tasks import send_welcome_email
 
 
 @extend_schema_view(
@@ -189,6 +190,15 @@ class UserViewSet(viewsets.ModelViewSet):
             print(f"Пользователь {request.user.email} просматривает профиль {instance.email}")
 
         return Response(serializer.data)
+
+    def perform_create(self, serializer):
+        """
+        При создании пользователя отправляем приветственное письмо
+        """
+        user = serializer.save()
+
+        # Асинхронная отправка приветственного письма
+        send_welcome_email.delay(user.id)
 
 
 @extend_schema_view(
