@@ -64,24 +64,30 @@
 ```bash
 git clone <url-репозитория>
 cd EduFlow
-Установите зависимости:
 ```
+2. **Установите зависимости:**
+
 ```bash
 pip install -r requirements.txt
-Настройте базу данных:
+```
+3. **Скопируйте шаблон:**
+```text
+# cp .env.example .env
+# Отредактируйте .env файл
+# Заполните Stripe ключи с https://dashboard.stripe.com/test/apikeys
 ```
 ```bash
 python manage.py migrate
-Создайте суперпользователя:
 ```
+4. **Создайте суперпользователя:**
 ```bash
 python manage.py createsuperuser
-Создайте группу модераторов (опционально):
 ```
+5. **Создайте группу модераторов (опционально):**
 ```bash
 python manage.py create_moderator_group
-Запустите сервер:
 ```
+6. **Запустите сервер:**
 ```bash
 python manage.py runserver
 ```
