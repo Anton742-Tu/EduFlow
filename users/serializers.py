@@ -137,7 +137,7 @@ class UserCreateSerializer(serializers.ModelSerializer):
         password = validated_data.pop("password")
 
         # Создаем пользователя без пароля
-        user = User.objects.create(
+        user = User(
             email=validated_data["email"],
             first_name=validated_data.get("first_name", ""),
             last_name=validated_data.get("last_name", ""),

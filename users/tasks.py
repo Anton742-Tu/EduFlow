@@ -1,13 +1,15 @@
 import logging
-from datetime import datetime, timedelta
+from datetime import timedelta
+from typing import Optional
 
 from celery import shared_task
 from django.conf import settings
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
+from django.utils import timezone
 from django.utils.html import strip_tags
 
-from materials.models import Course, Lesson
+from materials.models import Course
 
 from .models import Payments, Subscription, User
 
@@ -15,7 +17,9 @@ logger = logging.getLogger(__name__)
 
 
 @shared_task
-def send_course_update_notification(course_id, lesson_title, lesson_description=None):
+def send_course_update_notification(
+    course_id: int, lesson_title: str, lesson_description: Optional[str] = None
+) -> str:
     """
     Асинхронная рассылка уведомлений подписчикам о новом уроке в курсе
     """
@@ -77,7 +81,7 @@ def send_course_update_notification(course_id, lesson_title, lesson_description=
 
 
 @shared_task
-def send_welcome_email(user_id):
+def send_welcome_email(user_id: int) -> str:
     """
     Отправка приветственного письма новому пользователю
     """
@@ -113,13 +117,13 @@ def send_welcome_email(user_id):
 
 
 @shared_task
-def check_payment_status():
+def check_payment_status() -> str:
     """
     Проверка статуса pending платежей
     """
     try:
         pending_payments = Payments.objects.filter(
-            payment_status="pending", payment_date__lte=datetime.now() - timedelta(hours=24)
+            payment_status="pending", payment_date__lte=timezone.now() - timedelta(hours=24)
         )
 
         updated_count = 0
@@ -137,15 +141,13 @@ def check_payment_status():
 
 
 @shared_task
-def cleanup_old_data():
+def cleanup_old_data() -> str:
     """
     Очистка старых данных (например, логи, временные файлы)
     """
     try:
         # Пример: удаление платежей старше 1 года со статусом failed
-        from datetime import datetime, timedelta
-
-        old_date = datetime.now() - timedelta(days=365)
+        old_date = timezone.now() - timedelta(days=365)
 
         deleted_count = Payments.objects.filter(payment_status="failed", payment_date__lte=old_date).delete()[0]
 
@@ -158,25 +160,19 @@ def cleanup_old_data():
 
 
 @shared_task
-def deactivate_inactive_users():
+def deactivate_inactive_users() -> str:
     """
     Фоновая задача для деактивации пользователей, не заходивших более месяца
     """
     try:
-        from datetime import datetime, timedelta
-        from django.utils import timezone
-
         # Дата месяц назад
         month_ago = timezone.now() - timedelta(days=30)
 
         # Находим пользователей, которые не заходили более месяца и еще активны
-        inactive_users = User.objects.filter(
-            last_login__lt=month_ago,
-            is_active=True
-        ).exclude(
-            is_staff=True  # Не блокируем staff пользователей
-        ).exclude(
-            is_superuser=True  # Не блокируем суперпользователей
+        inactive_users = (
+            User.objects.filter(last_login__lt=month_ago, is_active=True)
+            .exclude(is_staff=True)  # Не блокируем staff пользователей
+            .exclude(is_superuser=True)  # Не блокируем суперпользователей
         )
 
         user_count = inactive_users.count()
@@ -189,14 +185,14 @@ def deactivate_inactive_users():
         deactivated_count = inactive_users.update(is_active=False)
 
         # Логируем деактивированных пользователей
-        deactivated_emails = list(inactive_users.values_list('email', flat=True))
+        deactivated_emails = list(inactive_users.values_list("email", flat=True))
 
         logger.info(f"Деактивировано {deactivated_count} неактивных пользователей: {deactivated_emails}")
 
         # Отправляем уведомление администратору (опционально)
         send_admin_notification.delay(
             subject="Отчет о деактивации неактивных пользователей",
-            message=f"Было деактивировано {deactivated_count} пользователей, не заходивших более месяца."
+            message=f"Было деактивировано {deactivated_count} пользователей, не заходивших более месяца.",
         )
 
         return f"Деактивировано {deactivated_count} неактивных пользователей"
@@ -207,25 +203,28 @@ def deactivate_inactive_users():
 
 
 @shared_task
-def send_admin_notification(subject, message):
+def send_admin_notification(subject: str, message: str) -> str:
     """
     Отправка уведомления администратору
     """
     try:
         # Получаем email администратора из настроек или используем первый staff email
-        admin_email = User.objects.filter(is_staff=True).first().email
+        admin_user = User.objects.filter(is_staff=True).first()
 
-        if admin_email:
+        if admin_user and admin_user.email:
             send_mail(
                 subject=subject,
                 message=message,
                 from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[admin_email],
+                recipient_list=[admin_user.email],
                 fail_silently=False,
             )
             logger.info(f"Уведомление администратору отправлено: {subject}")
+            return "Уведомление администратору отправлено"
         else:
             logger.warning("Не найден email администратора для отправки уведомления")
+            return "Не найден email администратора"
 
     except Exception as e:
         logger.error(f"Ошибка отправки уведомления администратору: {e}")
+        return f"Ошибка: {e}"
