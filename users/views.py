@@ -37,7 +37,7 @@ from .services.stripe_service import StripeService
     retrieve=extend_schema(
         summary="Детали пользователя",
         description="Получить детальную информацию о пользователе./n"
-                    " Публичные данные для всех авторизованных пользователей, приватные только для владельца профиля.",
+        " Публичные данные для всех авторизованных пользователей, приватные только для владельца профиля.",
         tags=["users"],
     ),
     create=extend_schema(
@@ -197,7 +197,7 @@ class UserViewSet(viewsets.ModelViewSet):
     list=extend_schema(
         summary="Список платежей",
         description="Получить список платежей./n"
-                    " Обычные пользователи видят только свои платежи, модераторы и администраторы - все.",
+        " Обычные пользователи видят только свои платежи, модераторы и администраторы - все.",
         tags=["payments"],
         parameters=[
             OpenApiParameter(
@@ -220,7 +220,7 @@ class UserViewSet(viewsets.ModelViewSet):
     retrieve=extend_schema(
         summary="Детали платежа",
         description="Получить детальную информацию о платеже./n"
-                    " Доступно владельцу платежа, модераторам и администраторам.",
+        " Доступно владельцу платежа, модераторам и администраторам.",
         tags=["payments"],
     ),
     create=extend_schema(

@@ -14,7 +14,7 @@ class StripeService:
     """
 
     @staticmethod
-    def create_product(name: str, description: str = "") -> Dict[str, Any]:
+    def create_product(name: str, description: str = "") -> stripe.Product:
         """
         Создание продукта в Stripe
         """
@@ -28,7 +28,7 @@ class StripeService:
             raise Exception(f"Ошибка создания продукта в Stripe: {str(e)}")
 
     @staticmethod
-    def create_price(product_id: str, amount: int, currency: str = "usd") -> Dict[str, Any]:
+    def create_price(product_id: str, amount: int, currency: str = "usd") -> stripe.Price:
         """
         Создание цены для продукта в Stripe
         """
@@ -45,7 +45,7 @@ class StripeService:
     @staticmethod
     def create_checkout_session(
         price_id: str, success_url: str, cancel_url: str, metadata: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+    ) -> stripe.checkout.Session:
         """
         Создание сессии для оплаты
         """
@@ -78,7 +78,7 @@ class StripeService:
         # Создаем цену (предполагаем что курс имеет поле price)
         price = StripeService.create_price(
             product_id=product.id,
-            amount=int(course.price) if hasattr(course, "price") else 1000,  # 10.00 USD по умолчанию
+            amount=int(course.price) if hasattr(course, "price") and course.price else 1000,  # 10.00 USD по умолчанию
         )
 
         # Создаем сессию оплаты

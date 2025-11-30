@@ -1,10 +1,11 @@
 from typing import Any, Dict
 
-from materials.models import Course
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
+
+from materials.models import Course
 
 from .models import Payments, Subscription, User  # Добавляем Subscription
 
@@ -133,7 +134,21 @@ class UserCreateSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data: Dict[str, Any]) -> User:
         validated_data.pop("password_confirm")
-        user = User.objects.create_user(**validated_data)
+        password = validated_data.pop("password")
+
+        # Создаем пользователя без пароля
+        user = User.objects.create(
+            email=validated_data['email'],
+            first_name=validated_data.get('first_name', ''),
+            last_name=validated_data.get('last_name', ''),
+            phone=validated_data.get('phone', ''),
+            city=validated_data.get('city', ''),
+            avatar=validated_data.get('avatar')
+        )
+
+        # Устанавливаем пароль отдельно
+        user.set_password(password)
+        user.save()
         return user
 
 
