@@ -1,12 +1,9 @@
-from typing import TYPE_CHECKING, List
+from typing import List
 
+from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.utils.translation import gettext_lazy as _
-
-# Conditional import для избежания циклических импортов
-if TYPE_CHECKING:
-    from materials.models import Course, Lesson
 
 from .managers import CustomUserManager
 
@@ -35,7 +32,7 @@ class User(AbstractUser):
         verbose_name_plural = _("users")
 
     def __str__(self) -> str:
-        return str(self.email)  # ← Явное преобразование в str
+        return str(self.email)
 
     @property
     def full_name(self) -> str:
@@ -45,46 +42,76 @@ class User(AbstractUser):
 
 
 class Payments(models.Model):
-    """Модель платежей"""
+    PAYMENT_METHOD_CHOICES = [
+        ("cash", "Наличные"),
+        ("transfer", "Перевод"),
+        ("stripe", "Stripe"),
+    ]
 
-    class PaymentMethod(models.TextChoices):
-        CASH = "cash", _("Наличные")
-        TRANSFER = "transfer", _("Перевод на счет")
+    PAYMENT_STATUS_CHOICES = [
+        ("pending", "Ожидает оплаты"),
+        ("paid", "Оплачено"),
+        ("failed", "Ошибка оплаты"),
+        ("refunded", "Возвращено"),
+    ]
 
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="payments", verbose_name=_("пользователь"))
-    payment_date = models.DateTimeField(_("дата оплаты"), auto_now_add=True)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="payments", verbose_name="Пользователь"
+    )
+    payment_date = models.DateTimeField(auto_now_add=True, verbose_name="Дата платежа")
+    amount = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Сумма")
+    payment_method = models.CharField(
+        max_length=20, choices=PAYMENT_METHOD_CHOICES, default="cash", verbose_name="Способ оплаты"
+    )
+    payment_status = models.CharField(
+        max_length=20, choices=PAYMENT_STATUS_CHOICES, default="pending", verbose_name="Статус платежа"
+    )
     paid_course = models.ForeignKey(
-        "materials.Course",  # ← Используем строковую ссылку
+        "materials.Course",
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
         related_name="payments",
-        verbose_name=_("оплаченный курс"),
+        verbose_name="Оплаченный курс",
     )
     paid_lesson = models.ForeignKey(
-        "materials.Lesson",  # ← Используем строковую ссылку
+        "materials.Lesson",
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
         related_name="payments",
-        verbose_name=_("оплаченный урок"),
+        verbose_name="Оплаченный урок",
     )
-    amount = models.DecimalField(_("сумма оплаты"), max_digits=10, decimal_places=2)
-    payment_method = models.CharField(_("способ оплаты"), max_length=10, choices=PaymentMethod.choices)
+    stripe_payment_intent_id = models.CharField(
+        max_length=255, blank=True, null=True, verbose_name="ID платежа в Stripe"
+    )
+    stripe_session_id = models.CharField(max_length=255, blank=True, null=True, verbose_name="ID сессии Stripe")
 
     class Meta:
-        verbose_name = _("платеж")
-        verbose_name_plural = _("платежи")
+        verbose_name = "Платеж"
+        verbose_name_plural = "Платежи"
         ordering = ["-payment_date"]
 
     def __str__(self) -> str:
-        return f"{self.user.email} - {self.amount} - {self.payment_date}"
+        return f"Платеж {self.amount} от {self.user.email}"
 
-    def clean(self) -> None:  # ← Добавляем аннотацию типа
-        """Проверяем что оплачен либо курс, либо урок"""
-        from django.core.exceptions import ValidationError
 
-        if self.paid_course and self.paid_lesson:
-            raise ValidationError(_("Можно оплатить либо курс, либо урок, но не оба одновременно."))
-        if not self.paid_course and not self.paid_lesson:
-            raise ValidationError(_("Должен быть оплачен либо курс, либо урок."))
+class Subscription(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="user_subscriptions",
+        verbose_name="Пользователь",
+    )
+    course = models.ForeignKey(
+        "materials.Course", on_delete=models.CASCADE, related_name="course_subscriptions", verbose_name="Курс"
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата подписки")
+
+    class Meta:
+        verbose_name = "Подписка"
+        verbose_name_plural = "Подписки"
+        unique_together = ["user", "course"]
+
+    def __str__(self) -> str:
+        return f"{self.user.email} подписан на {self.course.title}"

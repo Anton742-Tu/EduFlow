@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; }
+        .content { background: #f9f9f9; padding: 30px; }
+        .button { background: #667eea; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block; }
+        .footer { text-align: center; padding: 20px; font-size: 12px; color: #666; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎓 Новый урок доступен!</h1>
+        </div>
+        <div class="content">
+            <h2>Здравствуйте, {{ user_name }}!</h2>
+            <p>В курсе <strong>"{{ course_title }}"</strong> появился новый урок:</p>
+
+            <div style="background: white; padding: 20px; border-radius: 8px; border-left: 4px solid #667eea; margin: 20px 0;">
+                <h3 style="margin-top: 0; color: #667eea;">{{ lesson_title }}</h3>
+                {% if lesson_description %}
+                <p>{{ lesson_description }}</p>
+                {% endif %}
+            </div>
+
+            <p style="text-align: center;">
+                <a href="{{ course_url }}" class="button">Перейти к уроку</a>
+            </p>
+        </div>
+        <div class="footer">
+            <p>Вы получили это письмо, потому что подписаны на обновления курса "{{ course_title }}".</p>
+            <p>
+                <a href="{{ unsubscribe_url }}" style="color: #666; text-decoration: underline;">
+                    Отписаться от уведомлений
+                </a>
+            </p>
+            <p>© 2024 EduFlow. Все права защищены.</p>
+        </div>
+    </div>
+</body>
+</html>

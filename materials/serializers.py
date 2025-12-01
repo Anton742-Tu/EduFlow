@@ -1,39 +1,65 @@
-from typing import Any
+from typing import Any, Dict
 
 from rest_framework import serializers
 
 from .models import Course, Lesson
 
 
-class LessonSerializer(serializers.ModelSerializer):
-    """Сериализатор для урока"""
-
-    class Meta:
-        model = Lesson
-        fields = "__all__"
-
-
 class CourseSerializer(serializers.ModelSerializer):
-    """Сериализатор для курса"""
+    """
+    Сериализатор для курсов.
+    """
 
     lessons_count = serializers.SerializerMethodField()
-    lessons = LessonSerializer(many=True, read_only=True)
+    is_subscribed = serializers.SerializerMethodField()
 
     class Meta:
         model = Course
-        fields = [
-            "id",
-            "title",
-            "preview",
-            "description",
-            "owner",
-            "lessons_count",
-            "lessons",
-            "created_at",
-            "updated_at",
-        ]
+        fields = ["id", "title", "description", "owner", "created_at", "updated_at", "lessons_count", "is_subscribed"]
+        read_only_fields = ["id", "owner", "created_at", "updated_at"]
 
     def get_lessons_count(self, obj: Course) -> int:
-        """Метод для получения количества уроков в курсе"""
-        count = obj.lessons.count()
-        return int(count)  # ← Явное преобразование в int
+        """
+        Возвращает количество уроков в курсе.
+        """
+        count: int = obj.lessons.count()
+        return count
+
+    def get_is_subscribed(self, obj: Course) -> bool:
+        """
+        Проверяет, подписан ли текущий пользователь на курс.
+        """
+        user = self.context["request"].user
+        if user.is_authenticated:
+            from users.models import Subscription
+
+            is_subscribed: bool = Subscription.objects.filter(user=user, course=obj).exists()
+            return is_subscribed
+        return False
+
+
+class LessonSerializer(serializers.ModelSerializer):
+    """
+    Сериализатор для уроков.
+    """
+
+    class Meta:
+        model = Lesson
+        fields = ["id", "title", "description", "video_url", "course", "order", "owner", "created_at"]
+        read_only_fields = ["id", "owner", "created_at"]
+
+    def validate_video_url(self, value: str) -> str:
+        """
+        Валидация YouTube ссылки.
+        """
+        if value and "youtube.com" not in value and "youtu.be" not in value:
+            raise serializers.ValidationError("Разрешены только ссылки на YouTube")
+        return value
+
+    def create(self, validated_data: Dict[str, Any]) -> Lesson:
+        """
+        Создание урока с автоматическим назначением владельца.
+        """
+        validated_data["owner"] = self.context["request"].user
+        lesson: Lesson = super().create(validated_data)
+        return lesson

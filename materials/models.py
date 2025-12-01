@@ -4,6 +4,8 @@ from django.conf import settings
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
+from .validators import validate_youtube_url  # Добавляем импорт валидатора
+
 
 class Course(models.Model):
     """Модель курса"""
@@ -22,6 +24,7 @@ class Course(models.Model):
     )
     created_at = models.DateTimeField(_("created at"), auto_now_add=True)
     updated_at = models.DateTimeField(_("updated at"), auto_now=True)
+    price = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name="Цена курса")
 
     class Meta:
         verbose_name = _("course")
@@ -29,7 +32,7 @@ class Course(models.Model):
         ordering = ["-created_at"]
 
     def __str__(self) -> str:
-        return str(self.title)  # ← Явное преобразование в str
+        return str(self.title)
 
 
 class Lesson(models.Model):
@@ -44,7 +47,12 @@ class Lesson(models.Model):
         null=True,
         help_text=_("Upload a lesson preview image"),
     )
-    video_url = models.URLField(_("video URL"), blank=True, help_text=_("Enter the video URL for this lesson"))
+    video_url = models.URLField(
+        _("video URL"),
+        blank=True,
+        help_text=_("Enter the video URL for this lesson"),
+        validators=[validate_youtube_url],  # Добавляем валидатор здесь
+    )
     course = models.ForeignKey(
         Course,
         on_delete=models.CASCADE,
@@ -66,7 +74,7 @@ class Lesson(models.Model):
 
     def __str__(self) -> str:
         course_title = str(self.course.title) if self.course else "No Course"
-        return f"{course_title} - {self.title}"  # ← Явное преобразование
+        return f"{course_title} - {self.title}"
 
     def save(self, *args: Any, **kwargs: Any) -> None:
         """Автоматически устанавливаем порядок, если не указан"""
