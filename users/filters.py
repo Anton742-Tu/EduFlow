@@ -11,7 +11,7 @@ class PaymentsFilter(filters.FilterSet):
     lesson = filters.NumberFilter(field_name="paid_lesson__id", label="ID урока")
 
     # Фильтрация по способу оплаты
-    payment_method = filters.ChoiceFilter(choices=Payments.PaymentMethod.choices, label="Способ оплаты")
+    payment_method = filters.ChoiceFilter(choices=Payments.PAYMENT_METHOD_CHOICES)
 
     # Фильтрация по дате (дополнительно)
     payment_date_after = filters.DateTimeFilter(

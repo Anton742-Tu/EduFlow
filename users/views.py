@@ -2,18 +2,21 @@ from typing import Any, Type
 
 from django.db.models import QuerySet
 from django_filters.rest_framework import DjangoFilterBackend
+from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema, extend_schema_view
 from rest_framework import filters, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
 
-from materials.paginators import StandardResultsSetPagination
+from materials.models import Course
 
 from .filters import PaymentsFilter
 from .models import Payments, Subscription, User
 from .permissions import CanEditUserProfile, IsModeratorOrAdmin
 from .serializers import (
+    CoursePaymentSerializer,
+    PaymentSessionSerializer,
     PaymentsSerializer,
     PrivateUserProfileSerializer,
     PublicUserProfileSerializer,
@@ -21,8 +24,42 @@ from .serializers import (
     UserCreateSerializer,
     UserUpdateSerializer,
 )
+from .services.stripe_service import StripeService
 
 
+@extend_schema_view(
+    list=extend_schema(
+        summary="Список пользователей",
+        description="Получить список всех пользователей. Только для модераторов и администраторов.",
+        tags=["users"],
+    ),
+    retrieve=extend_schema(
+        summary="Детали пользователя",
+        description="Получить детальную информацию о пользователе./n"
+        " Публичные данные для всех авторизованных пользователей, приватные только для владельца профиля.",
+        tags=["users"],
+    ),
+    create=extend_schema(
+        summary="Регистрация пользователя",
+        description="Создать нового пользователя. Доступно без авторизации.",
+        tags=["users"],
+    ),
+    update=extend_schema(
+        summary="Обновление пользователя",
+        description="Полное обновление пользователя. Только для владельца профиля, модераторов и администраторов.",
+        tags=["users"],
+    ),
+    partial_update=extend_schema(
+        summary="Частичное обновление пользователя",
+        description="Частичное обновление пользователя. Только для владельца профиля, модераторов и администраторов.",
+        tags=["users"],
+    ),
+    destroy=extend_schema(
+        summary="Удаление пользователя",
+        description="Удалить пользователя. Только для администраторов.",
+        tags=["users"],
+    ),
+)
 class UserViewSet(viewsets.ModelViewSet):
     """
     ViewSet для управления профилями пользователей.
@@ -32,7 +69,6 @@ class UserViewSet(viewsets.ModelViewSet):
     """
 
     queryset = User.objects.all().prefetch_related("payments")
-    pagination_class = StandardResultsSetPagination
 
     def get_permissions(self) -> list:
         """
@@ -114,12 +150,25 @@ class UserViewSet(viewsets.ModelViewSet):
         except (ValueError, TypeError):
             return False
 
+    @extend_schema(
+        summary="Получить текущего пользователя",
+        description="Получить полную информацию о текущем аутентифицированном пользователе.",
+        tags=["users"],
+        responses={200: PrivateUserProfileSerializer},
+    )
     @action(detail=False, methods=["get"])
     def me(self, request: Request) -> Response:
         """Эндпоинт для получения текущего пользователя (полная информация)"""
         serializer = self.get_serializer(request.user)
         return Response(serializer.data)
 
+    @extend_schema(
+        summary="Обновить текущего пользователя",
+        description="Обновить информацию текущего аутентифицированного пользователя.",
+        tags=["users"],
+        request=UserUpdateSerializer,
+        responses={200: UserUpdateSerializer},
+    )
     @action(detail=False, methods=["put", "patch"])
     def update_me(self, request: Request) -> Response:
         """Эндпоинт для обновления текущего пользователя"""
@@ -141,7 +190,51 @@ class UserViewSet(viewsets.ModelViewSet):
 
         return Response(serializer.data)
 
+    def perform_create(self, serializer: Any) -> None:
+        """Автоматически назначаем пользователя при создании подписки"""
+        serializer.save(user=self.request.user)
 
+
+@extend_schema_view(
+    list=extend_schema(
+        summary="Список платежей",
+        description="Получить список платежей./n"
+        " Обычные пользователи видят только свои платежи, модераторы и администраторы - все.",
+        tags=["payments"],
+        parameters=[
+            OpenApiParameter(
+                name="course", type=OpenApiTypes.INT, location=OpenApiParameter.QUERY, description="Фильтр по ID курса"
+            ),
+            OpenApiParameter(
+                name="payment_method",
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.QUERY,
+                description="Фильтр по способу оплаты (cash, transfer)",
+            ),
+            OpenApiParameter(
+                name="ordering",
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.QUERY,
+                description="Сортировка (payment_date, -payment_date, amount, -amount)",
+            ),
+        ],
+    ),
+    retrieve=extend_schema(
+        summary="Детали платежа",
+        description="Получить детальную информацию о платеже./n"
+        " Доступно владельцу платежа, модераторам и администраторам.",
+        tags=["payments"],
+    ),
+    create=extend_schema(
+        summary="Создание платежа", description="Создать новый платеж. Только для администраторов.", tags=["payments"]
+    ),
+    update=extend_schema(
+        summary="Обновление платежа", description="Обновить платеж. Только для администраторов.", tags=["payments"]
+    ),
+    destroy=extend_schema(
+        summary="Удаление платежа", description="Удалить платеж. Только для администраторов.", tags=["payments"]
+    ),
+)
 class PaymentsViewSet(viewsets.ModelViewSet):
     """
     ViewSet для управления платежами с фильтрацией и сортировкой.
@@ -153,7 +246,6 @@ class PaymentsViewSet(viewsets.ModelViewSet):
     filterset_class = PaymentsFilter
     ordering_fields = ["payment_date", "amount"]
     ordering = ["-payment_date"]
-    pagination_class = StandardResultsSetPagination
 
     def get_permissions(self) -> list:
         """
@@ -204,7 +296,81 @@ class PaymentsViewSet(viewsets.ModelViewSet):
     def destroy(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         return super().destroy(request, *args, **kwargs)
 
+    @extend_schema(
+        summary="Создать сессию оплаты курса",
+        description="Создает сессию оплаты для курса через Stripe",
+        tags=["payments"],
+        request=CoursePaymentSerializer,
+        responses={200: PaymentSessionSerializer},
+    )
+    @action(detail=False, methods=["post"])
+    def create_course_payment(self, request: Request) -> Response:
+        """
+        Создание сессии оплаты для курса
+        """
+        serializer = CoursePaymentSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
 
+        course_id = serializer.validated_data["course_id"]
+        user = request.user
+
+        try:
+            course = Course.objects.get(id=course_id)
+
+            # Создаем запись о платеже
+            payment = Payments.objects.create(
+                user=user,
+                amount=course.price if hasattr(course, "price") else 1000,
+                payment_method="stripe",
+                payment_status="pending",
+                paid_course=course,
+            )
+
+            # Создаем сессию оплаты в Stripe
+            session_data = StripeService.create_course_payment_session(course, user.id)
+
+            # Сохраняем ID сессии в платеж
+            payment.stripe_session_id = session_data["session_id"]
+            payment.save()
+
+            return Response(PaymentSessionSerializer(session_data).data)
+
+        except Course.DoesNotExist:
+            return Response({"error": "Курс не найден"}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+@extend_schema_view(
+    list=extend_schema(
+        summary="Список подписок",
+        description="Получить список подписок текущего пользователя.",
+        tags=["subscriptions"],
+    ),
+    retrieve=extend_schema(
+        summary="Детали подписки",
+        description="Получить детальную информацию о подписке. Только для владельца подписки.",
+        tags=["subscriptions"],
+        parameters=[
+            OpenApiParameter(
+                name="id", type=OpenApiTypes.INT, location=OpenApiParameter.PATH, description="ID подписки"
+            )
+        ],
+    ),
+    create=extend_schema(
+        summary="Создание подписки", description="Создать новую подписку на курс.", tags=["subscriptions"]
+    ),
+    destroy=extend_schema(
+        summary="Удаление подписки",
+        description="Удалить подписку на курс. Только для владельца подписки.",
+        tags=["subscriptions"],
+        parameters=[
+            OpenApiParameter(
+                name="id", type=OpenApiTypes.INT, location=OpenApiParameter.PATH, description="ID подписки"
+            )
+        ],
+    ),
+)
 class SubscriptionViewSet(viewsets.ModelViewSet):
     """
     ViewSet для управления подписками на курсы
@@ -212,18 +378,31 @@ class SubscriptionViewSet(viewsets.ModelViewSet):
 
     serializer_class = SubscriptionSerializer
     permission_classes = [IsAuthenticated]
+    queryset = Subscription.objects.none()  # Фикс для drf-spectacular
 
     def get_queryset(self) -> QuerySet[Subscription]:
         """Пользователь видит только свои подписки"""
+        # Фикс для drf-spectacular
+        if getattr(self, "swagger_fake_view", False):
+            return Subscription.objects.none()
+
         return Subscription.objects.filter(user=self.request.user)
 
     def perform_create(self, serializer: SubscriptionSerializer) -> None:
         """Автоматически назначаем пользователя при создании подписки"""
         serializer.save(user=self.request.user)
 
+    @extend_schema(
+        summary="Подписаться на курс",
+        description="Подписаться на обновления курса.",
+        tags=["subscriptions"],
+        request=None,
+        responses={201: SubscriptionSerializer},
+    )
     @action(detail=False, methods=["post"])
     def subscribe(self, request: Request) -> Response:
         """Эндпоинт для подписки на курс"""
+        global Course
         course_id = request.data.get("course_id")
 
         if not course_id:
@@ -246,6 +425,13 @@ class SubscriptionViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(subscription)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
+    @extend_schema(
+        summary="Отписаться от курса",
+        description="Отписаться от обновлений курса.",
+        tags=["subscriptions"],
+        request=None,
+        responses={200: None},
+    )
     @action(detail=False, methods=["post"])
     def unsubscribe(self, request: Request) -> Response:
         """Эндпоинт для отписки от курса"""
